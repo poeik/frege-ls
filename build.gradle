@@ -1,0 +1,35 @@
+plugins {
+    id 'ch.fhnw.thga.frege' version '4.2.0-alpha'
+    id 'java'
+    id 'com.gradleup.shadow' version '8.3.6'
+}
+
+dependencies {
+    implementation files('lib/frege3.25.84.jar')
+}
+
+frege {
+    version     = '3.25.84'
+    release     = '3.25alpha'
+    mainModule  = 'ch.fhnw.lsp.Main' // see runFrege task
+    replModule  = 'ch.fhnw.lsp.Main' // see replFrege task
+    testModules = ['ch.fhnw.lsp.rpc.RpcSpec']
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir "$buildDir/classes/frege/main"
+        }
+    }
+}
+
+shadowJar {
+    archiveClassifier.set('')
+    manifest {
+        attributes 'Main-Class': 'ch.fhnw.lsp.Main'
+    }
+}
+
+// Make sure the generated sources are available before compiling Java
+compileJava.dependsOn compileFrege

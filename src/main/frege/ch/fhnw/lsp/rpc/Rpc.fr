@@ -1,0 +1,26 @@
+module ch.fhnw.lsp.rpc.Rpc where
+
+import ch.fhnw.lsp.rpc.Request
+
+import Data.JSON
+
+encodeMessage :: ToJSON a => a -> String
+encodeMessage a = 
+  let
+    msg   = show (toJSON a)
+    bytes = length msg
+  in
+    toMessage bytes msg
+  where
+    toMessage :: Int -> String -> String
+    toMessage bs msg = "Content-Length: " ++ show bs ++ "\r\n\r\n" ++ msg
+
+decodeMessage :: String -> Either String Request
+decodeMessage = parseJSON
+  
+extractMessageLength :: String -> Int
+extractMessageLength = read . packed . extractNumber . unpacked
+  where
+    extractNumber = dropWhitespace . dropLengthPrefix
+    dropLengthPrefix = dropWhile (!= ' ')
+    dropWhitespace = drop 1

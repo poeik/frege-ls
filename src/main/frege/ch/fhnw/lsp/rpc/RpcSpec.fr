@@ -1,0 +1,36 @@
+module ch.fhnw.lsp.rpc.RpcSpec where
+
+import ch.fhnw.lsp.rpc.Rpc
+
+import Data.JSON
+import Test.QuickCheck
+
+data TestData = TestData { testing :: Bool }
+
+derive Eq TestData
+
+instance ToJSON TestData where
+  toJSON x = struct "testing" x.testing
+
+instance FromJSON TestData where
+  fromJSON (Struct x) = do
+    testing <- field "testing" x
+    pure TestData { testing }
+  fromJSON garbage = fail ("couldn't decode TestData from: " ++ show garbage)
+
+p_Encoding :: Property
+p_Encoding = 
+  let
+    expected  = "Content-Length: 18\r\n\r\n{\"testing\" : true}"
+    actual    = encodeMessage $ TestData True
+  in
+    once $ actual == expected
+
+p_ExtractMessageLength :: Property
+p_ExtractMessageLength = 
+  let
+    header  = "Content-Length: 18"
+    body    = "{\"testing\" : true}"
+    actual  = extractMessageLength $ header ++ "\r\n\r\n" ++ body
+  in
+    once $ actual == 18

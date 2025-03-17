@@ -1,0 +1,30 @@
+module ch.fhnw.lsp.rpc.Request where
+
+import Data.JSON
+
+data Request = InitializeRequest { 
+  id          :: Int,
+  params      :: InitializeRequestParams
+}
+
+data InitializeRequestParams = InitializeRequestParams {
+  processId :: Int
+}
+
+instance FromJSON InitializeRequestParams where
+  fromJSON (Struct as) = do
+    processId <- field "processId" as
+    pure InitializeRequestParams { processId }
+  fromJSON garbage = fail ("couldn't decode MsgInitalizeParams from: " ++ show garbage)
+
+instance FromJSON Request where
+  fromJSON (Struct as) = do
+    id <- field "id" as
+    method <- field "method" as
+    case method of 
+      "initialize" -> do
+        params <- field "params" as
+        pure InitializeRequest { id, params }
+      unsupported -> do
+        fail $ "Unsupported message with method " ++ unsupported ++ " received"
+  fromJSON garbage = fail ("couldn't decode MsgInitalize from: " ++ show garbage)

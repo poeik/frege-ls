@@ -1,6 +1,9 @@
 module ch.fhnw.lsp.Main where
 
 import ch.fhnw.lsp.logger.Logger
+import ch.fhnw.lsp.rpc.Rpc
+import ch.fhnw.lsp.rpc.Request
+import ch.fhnw.lsp.rpc.Response
 
 pure native fromChars "new java.lang.String" :: JArray Char -> String
 
@@ -21,20 +24,41 @@ startLsp log = do
       mainLoop log = loop 
         where 
           loop = do 
-            (length, newMessage) <- readMessage log
-            log $ "Received message:\n " ++ newMessage
+            (length, newMessage) <- readMessage
+            log $ 
+              "Received message:\nlength: " ++ show length ++ "\nmessage: "++ newMessage
+            let result = processMessage newMessage
+      
+            case result of 
+              Right response -> case response of
+                                  InitializeResponse msg = log msg
+              Left err -> log $ "An error occured: " ++ err
             loop
       eof :: Logger -> EOFException -> IO ()
       eof log e = log $ "an error occured" ++ e.getMessage
 
-readMessage :: Logger -> IO (Int, String)
-readMessage log = do
-  header <- getLine
-  _ <- getLine
-  log $ header
+processMessage :: String -> Either String Response
+processMessage message = do
+  request <- decodeMessage message
+  handleMessage request
+  where 
+    handleMessage :: Request -> Either String Response
+    handleMessage msg = 
+      case msg of
+        InitializeRequest _ p -> processInitializeMessage p
+    
+processInitializeMessage :: InitializeRequestParams -> Either String Response
+processInitializeMessage (InitializeRequestParams processId) = pure $ InitializeResponse (show processId)
+
+sendResponse :: Response -> IO ()
+sendResponse msg = println "sent"
+
+readMessage :: IO (Int, String)
+readMessage = do
+  header     <- getLine
+  _          <- getLine
   let length = extractMessageLength header
-  log $ show length
-  message <- readChars length
+  message    <- readChars length
   pure $ (length, message)
 
 readChars :: Int -> IO String
@@ -43,10 +67,3 @@ readChars amt = do
   let offset = 0
   length <- stdin.read arr offset amt
   readonly fromChars arr
-
-extractMessageLength :: String -> Int
-extractMessageLength = read . packed . dropWhitespace . extractNumber . unpacked
-  where
-    extractNumber = dropWhile (!= ' ')
-    dropWhitespace = drop 1
-

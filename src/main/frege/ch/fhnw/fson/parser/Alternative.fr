@@ -1,0 +1,17 @@
+module ch.fhnw.fson.parser.Alternative where
+
+import frege.Prelude hiding (empty)
+
+some :: (Applicative f,Alt f) => f a -> f [a]
+some v = some'
+      where
+        many' = some' <|> pure []
+        some' = (:) <$> v <*> many'
+
+-- | Zero or more.
+many :: (Applicative f,Alt f) => f a -> f [a]
+many v = many'
+      where
+        many' = some' <|> pure []
+        some' = (:) <$> v <*> many'
+

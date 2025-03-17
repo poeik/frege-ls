@@ -1,11 +1,18 @@
 module ch.fhnw.lsp.Main where
 
+import Control.monad.trans.MonadIO
+import Control.monad.trans.EitherT
+
 import ch.fhnw.lsp.logger.Logger
 import ch.fhnw.lsp.rpc.Rpc
 import ch.fhnw.lsp.rpc.Request
 import ch.fhnw.lsp.rpc.Response
 
 pure native fromChars "new java.lang.String" :: JArray Char -> String
+type LspEnv a = EitherT String IO a
+
+liftEither :: Either String a -> LspEnv a
+liftEither = EitherT . pure
 
 main []             = startLsp swallowLog
 main (filePath : _) = do
@@ -20,35 +27,37 @@ startLsp log = do
       `catch` eof log
       `finally` log "Shutting down Frege LSP"
     where
-      mainLoop :: Logger -> IO ()
-      mainLoop log = loop 
-        where 
-          loop = do 
-            (length, newMessage) <- readMessage
-            log $ 
-              "Received message:\nlength: " ++ show length ++ "\nmessage: "++ newMessage
-            let result = processMessage newMessage
-      
-            case result of 
-              Right response -> case response of
-                                  InitializeResponse msg = log msg
-              Left err -> log $ "An error occured: " ++ err
-            loop
+      mainLoop log = do 
+        result <- EitherT.run $ handleMessage log
+        case result of 
+          Right response -> case response of
+            InitializeResponse msg = log msg
+          Left err -> log $ "An error occured: " ++ err
+        mainLoop log
       eof :: Logger -> EOFException -> IO ()
       eof log e = log $ "an error occured" ++ e.getMessage
 
-processMessage :: String -> Either String Response
-processMessage message = do
-  request <- decodeMessage message
+handleMessage :: Logger -> LspEnv Response
+handleMessage log = do
+  (length, newMessage) <- liftIO readMessage
+  liftIO $ log ("Received message:\nlength: " ++ show length ++ "\nmessage: "++ newMessage)
+  result <- processMessage log newMessage
+  pure result
+
+processMessage :: Logger -> String -> LspEnv Response
+processMessage log message = do
+  request <- liftEither $ decodeMessage message
   handleMessage request
   where 
-    handleMessage :: Request -> Either String Response
+    handleMessage :: Request -> LspEnv Response
     handleMessage msg = 
       case msg of
-        InitializeRequest _ p -> processInitializeMessage p
+        InitializeRequest _ p -> processInitializeMessage log p 
     
-processInitializeMessage :: InitializeRequestParams -> Either String Response
-processInitializeMessage (InitializeRequestParams processId) = pure $ InitializeResponse (show processId)
+processInitializeMessage :: Logger -> InitializeRequestParams -> LspEnv Response
+processInitializeMessage log (InitializeRequestParams pid) = do
+  liftIO (log $ "Connected to " ++ "PID: " ++ show pid)
+  pure $ InitializeResponse (show pid)
 
 sendResponse :: Response -> IO ()
 sendResponse msg = println "sent"

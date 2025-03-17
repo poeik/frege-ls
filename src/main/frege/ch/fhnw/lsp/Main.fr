@@ -2,8 +2,7 @@ module ch.fhnw.lsp.Main where
 
 import ch.fhnw.lsp.logger.Logger
 
-native systemIn "java.lang.System.in" :: STMutable s InputStream
-pure native fromBytes "new java.lang.String" :: JArray Byte -> String
+pure native fromChars "new java.lang.String" :: JArray Char -> String
 
 main []             = startLsp swallowLog
 main (filePath : _) = do
@@ -28,7 +27,6 @@ startLsp log = do
       eof :: Logger -> EOFException -> IO ()
       eof log e = log $ "an error occured" ++ e.getMessage
 
-
 readMessage :: Logger -> IO (Int, String)
 readMessage log = do
   header <- getLine
@@ -36,18 +34,15 @@ readMessage log = do
   log $ header
   let length = extractMessageLength header
   log $ show length
-  message <- readBytes log length
+  message <- readChars length
   pure $ (length, message)
 
-readBytes :: Logger -> Int -> IO String
-readBytes log amt = do 
-  i <- systemIn
+readChars :: Int -> IO String
+readChars amt = do
   arr <- newArray amt
-  log "created array"
-  -- somehow it hangs here - seems like i got the wrong input stream...
-  l <- i.read arr
-  log $ "read " ++ show l ++ " bytes"
-  readonly fromBytes arr
+  let offset = 0
+  length <- stdin.read arr offset amt
+  readonly fromChars arr
 
 extractMessageLength :: String -> Int
 extractMessageLength = read . packed . dropWhitespace . extractNumber . unpacked

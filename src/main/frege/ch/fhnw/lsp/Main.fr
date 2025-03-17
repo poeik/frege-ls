@@ -19,19 +19,29 @@ startLsp log = do
       mainLoop log = loop 
         where 
           loop = do 
-            length <- readMessage log
-            log $ "Received message with length: " ++ show length
+            (length, newMessage) <- readMessage log
+            log $ "Received message:\n " ++ newMessage
             loop
       eof :: Logger -> EOFException -> IO ()
       eof log e = log $ "an error occured" ++ e.getMessage
 
-readMessage :: Logger -> IO Int
+
+readMessage :: Logger -> IO (Int, String)
 readMessage log = do
   header <- getLine
   _ <- getLine
   log $ header
   let length = extractMessageLength header
-  pure $ length
+  log $ show length
+  message <- readN length
+  pure $ (length, message)
+
+readN :: Int -> IO String
+readN 0 = pure ""
+readN n = do
+  c  <- getChar
+  cs <- readN (n - 1)
+  pure $ (packed (c:[]) ++ cs)
 
 extractMessageLength :: String -> Int
 extractMessageLength = read . packed . dropWhitespace . extractNumber . unpacked

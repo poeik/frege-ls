@@ -11,3 +11,31 @@ main (filePath : _) = do
 startLsp :: Logger -> IO ()
 startLsp log = do
  log "Started Frege LSP"
+ forever (mainLoop log)
+      `catch` eof log
+      `finally` log "Shutting down Frege LSP"
+    where
+      mainLoop :: Logger -> IO ()
+      mainLoop log = loop 
+        where 
+          loop = do 
+            length <- readMessage log
+            log $ "Received message with length: " ++ show length
+            loop
+      eof :: Logger -> EOFException -> IO ()
+      eof log e = log $ "an error occured" ++ e.getMessage
+
+readMessage :: Logger -> IO Int
+readMessage log = do
+  header <- getLine
+  _ <- getLine
+  log $ header
+  let length = extractMessageLength header
+  pure $ length
+
+extractMessageLength :: String -> Int
+extractMessageLength = read . packed . dropWhitespace . extractNumber . unpacked
+  where
+    extractNumber = dropWhile (!= ' ')
+    dropWhitespace = drop 1
+

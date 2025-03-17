@@ -1,0 +1,13 @@
+module ch.fhnw.lsp.Main where
+
+import ch.fhnw.lsp.logger.Logger
+
+main []             = startLsp swallowLog
+main (filePath : _) = do
+     logger     <- getFileLogger filePath
+     let log = printWriterLog logger
+     startLsp log
+     
+startLsp :: Logger -> IO ()
+startLsp log = do
+ log "Started Frege LSP"

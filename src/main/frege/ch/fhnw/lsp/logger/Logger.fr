@@ -1,0 +1,23 @@
+module ch.fhnw.lsp.logger.Logger where
+
+type Logger = String -> IO ()
+type AbsolutePath = String
+
+data Date = native java.util.Date where
+    native new :: ()   -> IOMutable   Date
+                | Long -> STMutable s Date
+    native toString :: Mutable s Date -> ST s String
+
+getFileLogger :: AbsolutePath -> IOMutable PrintWriter
+getFileLogger = appendWriter
+
+printWriterLog :: MutableIO PrintWriter -> Logger
+printWriterLog writer msg = do
+  d <- Date.new ()
+  timestamp <- d.toString
+  writer.println $ timestamp ++ ": " ++ msg
+  writer.flush
+
+swallowLog :: Logger
+swallowLog _ = pure ()
+

@@ -5,14 +5,11 @@ import Control.monad.trans.EitherT
 
 import ch.fhnw.lsp.logger.Logger
 import ch.fhnw.lsp.rpc.Rpc
-import ch.fhnw.lsp.rpc.Request
+import ch.fhnw.lsp.messages.Messages
 import ch.fhnw.lsp.rpc.Response
+import ch.fhnw.lsp.env.LspEnv
 
 pure native fromChars "new java.lang.String" :: JArray Char -> String
-type LspEnv a = EitherT String IO a
-
-liftEither :: Either String a -> LspEnv a
-liftEither = EitherT . pure
 
 main []             = startLsp swallowLog
 main (filePath : _) = do
@@ -27,40 +24,28 @@ startLsp log = do
       `catch` eof log
       `finally` log "Shutting down Frege LSP"
     where
-      mainLoop log = do 
-        result <- EitherT.run $ handleMessage log
-        case result of 
-          Right response -> case response of
-            InitializeResponse msg = log msg
-          Left err -> log $ "An error occured: " ++ err
-        mainLoop log
       eof :: Logger -> EOFException -> IO ()
       eof log e = log $ "an error occured" ++ e.getMessage
+
+mainLoop :: (String->IO ()) -> IO ()
+mainLoop log = do 
+  result <- EitherT.run $ handleMessage log
+  case result of 
+    Right response -> sendResponse response
+    Left err -> log $ "An error occured: " ++ err
+  mainLoop log
 
 handleMessage :: Logger -> LspEnv Response
 handleMessage log = do
   (length, newMessage) <- liftIO readMessage
-  liftIO $ log ("Received message:\nlength: " ++ show length ++ "\nmessage: "++ newMessage)
-  result <- processMessage log newMessage
-  pure result
-
-processMessage :: Logger -> String -> LspEnv Response
-processMessage log message = do
-  request <- liftEither $ decodeMessage message
-  handleMessage request
-  where 
-    handleMessage :: Request -> LspEnv Response
-    handleMessage msg = 
-      case msg of
-        InitializeRequest _ p -> processInitializeMessage log p 
-    
-processInitializeMessage :: Logger -> InitializeRequestParams -> LspEnv Response
-processInitializeMessage log (InitializeRequestParams pid) = do
-  liftIO (log $ "Connected to " ++ "PID: " ++ show pid)
-  pure $ InitializeResponse (show pid)
+  liftIO $ log ("Received message:\nlength: " ++ show length ++ "\nmessage: " ++ newMessage)
+  request <- liftEither $ decodeMessage newMessage
+  response  <- processMessage log request
+  liftIO $ log ("Got the following result: " ++ show response)
+  pure response
 
 sendResponse :: Response -> IO ()
-sendResponse msg = println "sent"
+sendResponse msg = println $ encodeMessage msg
 
 readMessage :: IO (Int, String)
 readMessage = do

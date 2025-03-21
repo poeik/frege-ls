@@ -1,0 +1,8 @@
+module ch.fhnw.lsp.env.LspEnv where
+
+import Control.monad.trans.EitherT
+
+type LspEnv a = EitherT String IO a
+
+liftEither :: Either String a -> LspEnv a
+liftEither = EitherT . pure

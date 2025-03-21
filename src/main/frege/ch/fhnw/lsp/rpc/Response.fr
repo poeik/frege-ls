@@ -1,3 +1,0 @@
-module ch.fhnw.lsp.rpc.Response where
-
-data Response = InitializeResponse String

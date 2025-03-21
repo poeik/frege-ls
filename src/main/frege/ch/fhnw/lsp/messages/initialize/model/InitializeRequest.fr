@@ -1,0 +1,28 @@
+module ch.fhnw.lsp.messages.initialize.model.InitializeRequest where
+
+import Data.JSON
+
+data InitializeRequestParams = InitializeRequestParams {
+  processId  :: Int,
+  clientInfo :: Maybe ClientInfo
+}
+
+data ClientInfo = ClientInfo {
+  name    :: String,
+  version :: Maybe String
+}
+
+instance FromJSON InitializeRequestParams where
+  fromJSON (Struct as) = do
+    processId <- field "processId" as
+    clientInfo <- field "clientInfo" as
+    pure InitializeRequestParams { processId, clientInfo }
+  fromJSON garbage = fail ("couldn't decode MsgInitalizeParams from: " ++ show garbage)
+
+instance FromJSON ClientInfo where
+  fromJSON (Struct as) = do
+    name <- field "name" as
+    version <- field "version" as
+    pure ClientInfo { name, version }
+  fromJSON garbage = fail ("couldn't decode ClientInfo from: " ++ show garbage)
+

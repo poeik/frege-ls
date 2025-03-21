@@ -1,0 +1,12 @@
+module ch.fhnw.lsp.messages.Messages where
+
+import ch.fhnw.lsp.rpc.Response
+import ch.fhnw.lsp.rpc.Request
+import ch.fhnw.lsp.messages.initialize.Initialize
+
+import ch.fhnw.lsp.env.LspEnv
+import ch.fhnw.lsp.logger.Logger
+
+processMessage :: Logger -> Request -> LspEnv Response
+processMessage log (InitializeRequest id params) = 
+  fmap (InitializeResponse id) (processInitializeMessage log params)

@@ -1,0 +1,18 @@
+module ch.fhnw.lsp.rpc.Response where
+
+import ch.fhnw.lsp.messages.initialize.model.InitializeResult
+
+import Data.JSON
+
+data Response = 
+  InitializeResponse (Maybe Int) InitializeResult
+
+derive Show Response
+
+instance ToJSON Response where
+  toJSON (InitializeResponse requestId result) = 
+    Struct [ 
+              ("jsonrpc", toJSON "2.0"),
+              ("id", maybeToJSON requestId),
+              ("result", toJSON result)
+           ]

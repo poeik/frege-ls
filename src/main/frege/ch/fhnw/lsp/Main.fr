@@ -2,11 +2,13 @@ module ch.fhnw.lsp.Main where
 
 import Control.monad.trans.MonadIO
 import Control.monad.trans.EitherT
+import Data.JSON
 
 import ch.fhnw.lsp.logger.Logger
 import ch.fhnw.lsp.rpc.Rpc
 import ch.fhnw.lsp.messages.Messages
 import ch.fhnw.lsp.rpc.Response
+import ch.fhnw.lsp.rpc.Request
 import ch.fhnw.lsp.env.LspEnv
 
 pure native fromChars "new java.lang.String" :: JArray Char -> String
@@ -38,14 +40,15 @@ mainLoop log = do
 handleMessage :: Logger -> LspEnv Response
 handleMessage log = do
   (length, newMessage) <- liftIO readMessage
-  liftIO $ log ("Received message:\nlength: " ++ show length ++ "\nmessage: " ++ newMessage)
+  (Method method) <- liftEither $ parseJSON newMessage
+  liftIO $ log ("Received \"" ++ method ++ "\"-message with length: " ++ show length)
   request <- liftEither $ decodeMessage newMessage
   response  <- processMessage log request
-  liftIO $ log ("Got the following result: " ++ show response)
   pure response
 
 sendResponse :: Response -> IO ()
-sendResponse msg = println $ encodeMessage msg
+sendResponse EmptyResponse = pure ()
+sendResponse msg           = println $ encodeMessage msg
 
 readMessage :: IO (Int, String)
 readMessage = do

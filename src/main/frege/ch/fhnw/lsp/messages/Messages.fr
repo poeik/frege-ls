@@ -8,5 +8,5 @@ import ch.fhnw.lsp.env.LspEnv
 import ch.fhnw.lsp.logger.Logger
 
 processMessage :: Logger -> Request -> LspEnv Response
-processMessage log (InitializeRequest id params) = 
-  fmap (InitializeResponse id) (processInitializeMessage log params)
+processMessage log (InitializeRequest id params) = fmap (InitializeResponse id) (processInitializeMessage log params)
+processMessage log InitializedRequest            = pure EmptyResponse

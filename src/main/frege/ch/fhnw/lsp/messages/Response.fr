@@ -4,8 +4,9 @@ import ch.fhnw.lsp.messages.initialize.model.InitializeResult
 
 import Data.JSON
 
-data Response = 
-  InitializeResponse (Maybe Int) InitializeResult
+data Response = InitializeResponse (Maybe Int) InitializeResult
+              | EmptyResponse
+  
 
 derive Show Response
 
@@ -16,3 +17,4 @@ instance ToJSON Response where
               ("id", maybeToJSON requestId),
               ("result", toJSON result)
            ]
+  toJSON EmptyResponse = Struct []

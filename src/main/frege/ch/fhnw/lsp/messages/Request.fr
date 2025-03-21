@@ -7,7 +7,9 @@ import Data.JSON
 data Request = InitializeRequest { 
   id          :: Maybe Int,
   params      :: InitializeRequestParams
-}
+} | InitializedRequest
+
+data Method = Method String
 
 instance FromJSON Request where
   fromJSON (Struct as) = do
@@ -17,7 +19,16 @@ instance FromJSON Request where
       "initialize" -> do
         params <- field "params" as
         pure InitializeRequest { id, params }
+      "initialized" -> do
+        pure InitializedRequest
       unsupported -> do
-        fail $ "Unsupported message with method " ++ unsupported ++ " received"
-  fromJSON garbage = fail ("couldn't decode MsgInitalize from: " ++ show garbage)
+        fail $ "Unsupported message with method \"" ++ unsupported ++ "\" received"
+  fromJSON garbage = fail ("couldn't decode message from: " ++ show garbage)
+
+instance FromJSON Method where
+  fromJSON (Struct as) = do
+    method <- field "method" as
+    pure $ Method method
+  fromJSON garbage = fail ("couldn't decode Method: " ++ show garbage)
+
 

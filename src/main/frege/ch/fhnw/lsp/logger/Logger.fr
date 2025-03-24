@@ -1,5 +1,6 @@
 module ch.fhnw.lsp.logger.Logger where
 
+-- TODO: add log levels to logger
 type Logger m = String -> m ()
 type AbsolutePath = String
 

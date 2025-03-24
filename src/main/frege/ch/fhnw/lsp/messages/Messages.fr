@@ -7,14 +7,13 @@ import ch.fhnw.lsp.messages.textdocument.DefinitionTypes
 import ch.fhnw.lsp.messages.GeneralLspTypes
 
 import ch.fhnw.lsp.env.LspEnv
-import ch.fhnw.lsp.logger.Logger
 
 import Data.JSON
 
-processMessage :: Monad m => Logger m -> Request -> LspEnv m Response
-processMessage log (InitializeRequest id params) = fmap (InitializeResponse id) (processInitializeMessage log params)
-processMessage log InitializedRequest            = pure EmptyResponse
-processMessage log (DefinitionRequest id params) = pure $ (DefinitionResponse id) (processDefinitionMessage params)
+processMessage :: Monad m => Request -> LspEnv m Response
+processMessage (InitializeRequest id params) = fmap (InitializeResponse id) (processInitializeMessage params)
+processMessage InitializedRequest            = pure EmptyResponse
+processMessage (DefinitionRequest id params) = pure $ (DefinitionResponse id) (processDefinitionMessage params)
 
 -- All supported requests
 data Request = InitializeRequest { id :: Int, initParams :: InitializeRequestParams } 

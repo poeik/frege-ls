@@ -19,30 +19,30 @@ main (filePath : _) = do
 startLsp :: Logger IO -> IO ()
 startLsp log = do
  log "Started Frege LSP"
- let st = initialState
- forever (mainLoop log st)
+ let st = initialState log
+ forever (mainLoop st)
       `catch` eof log
       `finally` log "Shutting down Frege LSP"
     where
       eof :: Logger IO -> EOFException -> IO ()
       eof log e = log $ "an error occurred" ++ e.getMessage
 
-mainLoop :: (String->IO ()) -> LspState -> IO ()
-mainLoop log st = do 
-  (result, st) <- runLspEnv st $  handleMessage log
+mainLoop :: LspState IO -> IO ()
+mainLoop st = do 
+  (result, st) <- runLspEnv st $ handleMessage
   case result of 
-    Left  err      -> log $ "An error occured: " ++ err
+    Left  err      -> st.logger $ "An error occured: " ++ err
     Right response -> sendResponse response
-  mainLoop log st
+  mainLoop st
 
-handleMessage :: Logger IO -> LspEnv IO Response
-handleMessage log = do
+handleMessage :: LspEnv IO Response
+handleMessage = do
   (length, newMessage) <- liftIO readMessage
   (Method method)      <- liftEither $ parseJSON newMessage
-  liftIO $ log ("Received \"" ++ method ++ "\"-message with length: " ++ show length)
-  liftIO $ log ("Message:\n" ++ newMessage)
+  logInfo ("Received \"" ++ method ++ "\"-message with length: " ++ show length)
+  logInfo ("Message:\n" ++ newMessage)
   request   <- liftEither $ decodeMessage newMessage
-  response  <- processMessage log request
+  response  <- processMessage request
   pure response
 
 sendResponse :: Response -> IO ()

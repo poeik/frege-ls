@@ -11,7 +11,7 @@ import ch.fhnw.lsp.logger.Logger
 
 import Data.JSON
 
-processMessage :: Logger -> Request -> LspEnv Response
+processMessage :: Monad m => Logger m -> Request -> LspEnv m Response
 processMessage log (InitializeRequest id params) = fmap (InitializeResponse id) (processInitializeMessage log params)
 processMessage log InitializedRequest            = pure EmptyResponse
 processMessage log (DefinitionRequest id params) = pure $ (DefinitionResponse id) (processDefinitionMessage params)

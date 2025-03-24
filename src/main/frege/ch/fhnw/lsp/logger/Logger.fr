@@ -1,6 +1,6 @@
 module ch.fhnw.lsp.logger.Logger where
 
-type Logger = String -> IO ()
+type Logger m = String -> m ()
 type AbsolutePath = String
 
 data Date = native java.util.Date where
@@ -11,13 +11,13 @@ data Date = native java.util.Date where
 getFileLogger :: AbsolutePath -> IOMutable PrintWriter
 getFileLogger = appendWriter
 
-printWriterLog :: MutableIO PrintWriter -> Logger
+printWriterLog :: MutableIO PrintWriter -> Logger IO
 printWriterLog writer msg = do
   d <- Date.new ()
   timestamp <- d.toString
   writer.println $ timestamp ++ ": " ++ msg
   writer.flush
 
-swallowLog :: Logger
+swallowLog :: Monad m => Logger m
 swallowLog _ = pure ()
 

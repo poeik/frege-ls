@@ -4,11 +4,9 @@ import ch.fhnw.lsp.env.LspEnv
 import ch.fhnw.lsp.logger.Logger
 import ch.fhnw.lsp.messages.initialize.InitializeTypes
 
-import Control.monad.trans.MonadIO
-
-processInitializeMessage :: Logger -> InitializeRequestParams -> LspEnv InitializeResult
+processInitializeMessage :: Monad m => Logger m -> InitializeRequestParams -> LspEnv m InitializeResult
 processInitializeMessage log (InitializeRequestParams pid client) = do
-  liftIO $ log (logClientInfos pid client)
+  liftMonad $ log (logClientInfos pid client)
   pure $ InitializeResult (ServerCapabilities True) (Just (ServerInfo "new Frege LSP" (Just $ "v0.0.1")))
 
 logClientInfos :: Int -> Maybe ClientInfo -> String

@@ -1,7 +1,7 @@
 module ch.fhnw.lsp.env.LspEnv where
 
 import Control.monad.trans.EitherT
-import Control.monad.trans.MonadTrans
+import Control.monad.trans.MonadTrans as MT()
 import Control.monad.trans.MonadIO as M()
 import Control.monad.State
 
@@ -21,27 +21,30 @@ data LspState = LspState {
 , files    :: HashMap String LspFile
 }
 
-type LspEnv a = EitherT String (StateT LspState IO) a
+type LspEnv m a = Monad m => EitherT String (StateT LspState m) a
 
-liftState :: State LspState a -> LspEnv a
-liftState st = lift (promote st)
+liftState :: Monad m => State LspState a -> LspEnv m a
+liftState st = MT.lift (promote st)
 
-liftEither :: Either String a -> LspEnv a
+liftEither :: Monad m => Either String a -> LspEnv m a
 liftEither (Right a)  = pure a
 liftEither (Left err) = left err
 
-liftIO :: IO a -> LspEnv a
+liftIO :: IO a -> LspEnv IO a
 liftIO = M.liftIO
 
-get :: LspEnv LspState
-get = lift $ StateT.get
+liftMonad :: Monad m => m a -> LspEnv m a
+liftMonad = MT.lift . MT.lift
 
-put :: LspState -> LspEnv ()
-put = lift . StateT.put
+get :: Monad m => LspEnv m LspState
+get = MT.lift $ StateT.get
 
-modify :: (LspState -> LspState) -> LspEnv ()
-modify = lift . StateT.modify
+put :: Monad m => LspState -> LspEnv m ()
+put = MT.lift . StateT.put
 
-runLspEnv :: LspState -> LspEnv a -> IO (Either String a, LspState)
+modify :: Monad m => (LspState -> LspState) -> LspEnv m ()
+modify = MT.lift . StateT.modify
+
+runLspEnv :: Monad m => LspState -> LspEnv m a -> m (Either String a, LspState)
 runLspEnv st env = runStateT (EitherT.run env) st
 

@@ -16,7 +16,7 @@ main (filePath : _) = do
      let log = printWriterLog logger
      startLsp log
      
-startLsp :: Logger -> IO ()
+startLsp :: Logger IO -> IO ()
 startLsp log = do
  log "Started Frege LSP"
  let st = initialState
@@ -24,8 +24,8 @@ startLsp log = do
       `catch` eof log
       `finally` log "Shutting down Frege LSP"
     where
-      eof :: Logger -> EOFException -> IO ()
-      eof log e = log $ "an error occured" ++ e.getMessage
+      eof :: Logger IO -> EOFException -> IO ()
+      eof log e = log $ "an error occurred" ++ e.getMessage
 
 mainLoop :: (String->IO ()) -> LspState -> IO ()
 mainLoop log st = do 
@@ -35,7 +35,7 @@ mainLoop log st = do
     Right response -> sendResponse response
   mainLoop log st
 
-handleMessage :: Logger -> LspEnv Response
+handleMessage :: Logger IO -> LspEnv IO Response
 handleMessage log = do
   (length, newMessage) <- liftIO readMessage
   (Method method)      <- liftEither $ parseJSON newMessage

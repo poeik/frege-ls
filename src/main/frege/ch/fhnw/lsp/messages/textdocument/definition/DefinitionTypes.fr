@@ -1,0 +1,18 @@
+module ch.fhnw.lsp.messages.textdocument.DefinitionTypes where
+
+import Data.JSON
+
+import ch.fhnw.lsp.messages.GeneralLspTypes
+
+data DefinitionRequestParams = DefinitionRequestParams {
+  position     :: Position,
+  textDocument :: TextDocument
+}
+
+instance FromJSON DefinitionRequestParams where
+  fromJSON (Struct as) = do
+    position     <- field "position" as
+    textDocument <- field "textDocument" as
+    pure DefinitionRequestParams { position, textDocument }
+  fromJSON garbage = fail ("couldn't decode DefinitionRequestParams from: " ++ show garbage)
+

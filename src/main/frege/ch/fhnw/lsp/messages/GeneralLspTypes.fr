@@ -1,0 +1,76 @@
+module ch.fhnw.lsp.messages.GeneralLspTypes where
+
+import Data.JSON
+
+data TextDocument = TextDocument {
+  uri :: String
+}
+derive Show TextDocument
+
+data Location = Location {
+  uri   :: String,
+  range :: Range
+}
+derive Show Location
+
+data Range = Range {
+  start :: Position,
+  end   :: Position
+}
+derive Show Range
+
+data Position = Position {
+  line      :: Int,
+  character :: Int
+}
+derive Show Position
+
+-------------  FromJSON instances ------------- 
+
+instance FromJSON TextDocument where
+  fromJSON (Struct as) = do
+    uri <- field "uri" as
+    pure TextDocument { uri }
+  fromJSON garbage = fail ("couldn't decode TextDocument from: " ++ show garbage)
+
+instance FromJSON Location where
+  fromJSON (Struct as) = do
+    uri   <- field "uri" as
+    range <- field "range" as
+    pure Location { uri, range }
+  fromJSON garbage = fail ("couldn't decode Location from: " ++ show garbage)
+
+instance FromJSON Position where
+  fromJSON (Struct as) = do
+    line      <- field "line" as
+    character <- field "character" as
+    pure Position { line, character }
+  fromJSON garbage = fail ("couldn't decode Position from: " ++ show garbage)
+
+instance FromJSON Range where
+  fromJSON (Struct as) = do
+    start <- field "start" as
+    end   <- field "end" as
+    pure Range { start, end }
+  fromJSON garbage = fail ("couldn't decode Range from: " ++ show garbage)
+
+------------- ToJSON instances ------------- 
+
+instance ToJSON Location where
+  toJSON Location { uri, range } =
+    Struct [ ("uri", toJSON uri)
+           , ("range", toJSON range)
+           ]
+
+instance ToJSON Position where
+  toJSON Position { line, character } =
+    Struct [ ("line", toJSON line)
+           , ("character", toJSON character)
+           ]
+
+instance ToJSON Range where
+  toJSON Range { start, end } =
+    Struct [ ("start", toJSON start)
+           , ("end",   toJSON end)
+           ]
+

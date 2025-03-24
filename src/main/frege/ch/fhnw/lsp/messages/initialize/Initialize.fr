@@ -2,8 +2,7 @@ module ch.fhnw.lsp.messages.initialize.Initialize where
 
 import ch.fhnw.lsp.env.LspEnv
 import ch.fhnw.lsp.logger.Logger
-import ch.fhnw.lsp.messages.initialize.model.InitializeRequest
-import ch.fhnw.lsp.messages.initialize.model.InitializeResult
+import ch.fhnw.lsp.messages.initialize.InitializeTypes
 
 import Control.monad.trans.MonadIO
 

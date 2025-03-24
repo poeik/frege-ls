@@ -1,0 +1,60 @@
+module ch.fhnw.lsp.messages.initialize.InitializeTypes where
+
+import Data.JSON
+
+data InitializeRequestParams = InitializeRequestParams {
+  processId  :: Int,
+  clientInfo :: Maybe ClientInfo
+}
+derive Show InitializeResult
+
+data ClientInfo = ClientInfo {
+  name    :: String,
+  version :: Maybe String
+}
+
+data InitializeResult = InitializeResult {
+  capabilities :: ServerCapabilities,
+  serverInfo   :: Maybe ServerInfo
+}
+
+data ServerInfo = ServerInfo {
+  name    :: String,
+  version :: Maybe String
+}
+derive Show ServerInfo
+
+data ServerCapabilities = ServerCapabilities { definitionProvider :: Bool }
+derive Show ServerCapabilities
+
+-------------  FromJSON instances ------------- 
+
+instance FromJSON InitializeRequestParams where
+  fromJSON (Struct as) = do
+    processId  <- field "processId" as
+    clientInfo <- field "clientInfo" as
+    pure InitializeRequestParams { processId, clientInfo }
+  fromJSON garbage = fail ("couldn't decode MsgInitalizeParams from: " ++ show garbage)
+
+instance FromJSON ClientInfo where
+  fromJSON (Struct as) = do
+    name    <- field "name" as
+    version <- field "version" as
+    pure ClientInfo { name, version }
+  fromJSON garbage = fail ("couldn't decode ClientInfo from: " ++ show garbage)
+
+-------------  ToJSON instances ------------- 
+
+instance ToJSON InitializeResult where
+  toJSON InitializeResult { capabilities, serverInfo } =
+    Struct ( [ ("capabilities", toJSON capabilities) ]
+             ++ maybe [] (\si -> [("serverInfo", toJSON si)]) serverInfo )
+
+instance ToJSON ServerInfo where
+  toJSON ServerInfo { name, version } =
+    Struct ( [ ("name", toJSON name) ]
+             ++ maybe [] (\v -> [("version", toJSON v)]) version )
+
+instance ToJSON ServerCapabilities where
+  toJSON (ServerCapabilities definitionProvider) = Struct [("definitionProvider", toJSON definitionProvider)]
+

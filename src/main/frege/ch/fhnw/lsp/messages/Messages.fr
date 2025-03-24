@@ -1,9 +1,10 @@
 module ch.fhnw.lsp.messages.Messages where
 
 import ch.fhnw.lsp.messages.initialize.Initialize
-import ch.fhnw.lsp.messages.initialize.model.InitializeRequest
-import ch.fhnw.lsp.messages.initialize.model.InitializeResult
-import ch.fhnw.lsp.messages.Definition
+import ch.fhnw.lsp.messages.initialize.InitializeTypes
+import ch.fhnw.lsp.messages.textdocument.Definition
+import ch.fhnw.lsp.messages.textdocument.DefinitionTypes
+import ch.fhnw.lsp.messages.GeneralLspTypes
 
 import ch.fhnw.lsp.env.LspEnv
 import ch.fhnw.lsp.logger.Logger
@@ -16,30 +17,30 @@ processMessage log InitializedRequest            = pure EmptyResponse
 processMessage log (DefinitionRequest id params) = pure $ (DefinitionResponse id) (processDefinitionMessage params)
 
 -- All supported requests
-data Request = InitializeRequest { id :: Maybe Int, params :: InitializeRequestParams } 
+data Request = InitializeRequest { id :: Int, initParams :: InitializeRequestParams } 
              | InitializedRequest 
-             | DefinitionRequest { requestId :: Int, defParams :: DefinitionRequestParams }
+             | DefinitionRequest { id :: Int, defParams  :: DefinitionRequestParams }
 
 instance FromJSON Request where
   fromJSON (Struct as) = do
-    id     <- optional "id" as
     method <- field "method" as
     case method of 
       "initialize" -> do
-        params <- field "params" as
-        pure InitializeRequest { id, params }
+        id         <- field "id" as
+        initParams <- field "params" as
+        pure InitializeRequest { id, initParams }
       "initialized" -> do
         pure InitializedRequest
       "textDocument/definition" -> do
-        id <- field "id" as
+        id        <- field "id" as
         defParams <- field "params" as
-        pure $ DefinitionRequest { requestId = id, defParams = defParams }
+        pure $ DefinitionRequest { id, defParams }
       unsupported -> do
         fail $ "Unsupported message with method \"" ++ unsupported ++ "\" received"
   fromJSON garbage = fail ("couldn't decode message from: " ++ show garbage)
 
 -- all supported responses
-data Response = InitializeResponse (Maybe Int) InitializeResult
+data Response = InitializeResponse Int InitializeResult
               | DefinitionResponse Int Location 
               | EmptyResponse
 
@@ -49,15 +50,15 @@ instance ToJSON Response where
   toJSON (InitializeResponse requestId result) = 
     Struct [ 
               ("jsonrpc", toJSON "2.0"),
-              ("id", maybeToJSON requestId),
-              ("result", toJSON result)
+              ("id"     , toJSON requestId),
+              ("result" , toJSON result)
            ]
   toJSON EmptyResponse = Struct []
   toJSON (DefinitionResponse requestId location) = 
     Struct [ 
               ("jsonrpc", toJSON "2.0"),
-              ("id",      toJSON requestId),
-              ("result",  toJSON location)
+              ("id"     , toJSON requestId),
+              ("result" , toJSON location)
            ]
 
 data Method = Method String

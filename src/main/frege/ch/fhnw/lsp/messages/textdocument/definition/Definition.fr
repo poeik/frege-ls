@@ -1,0 +1,15 @@
+module ch.fhnw.lsp.messages.textdocument.Definition where
+
+import ch.fhnw.lsp.messages.GeneralLspTypes
+import ch.fhnw.lsp.messages.textdocument.DefinitionTypes
+
+processDefinitionMessage :: DefinitionRequestParams -> Location
+processDefinitionMessage params = 
+  Location { 
+    uri   = params.textDocument.uri, 
+    range = Range { 
+      start = params.position.{ line = 0 },
+      end   = params.position.{ line = 0 }
+    }
+  }
+

@@ -1,7 +1,5 @@
 module ch.fhnw.lsp.rpc.Rpc where
 
-import ch.fhnw.lsp.rpc.Request
-
 import Data.JSON
 
 encodeMessage :: ToJSON a => a -> String
@@ -15,7 +13,7 @@ encodeMessage a =
     toMessage :: Int -> String -> String
     toMessage bs msg = "Content-Length: " ++ show bs ++ "\r\n\r\n" ++ msg
 
-decodeMessage :: String -> Either String Request
+decodeMessage ::FromJSON a => String -> Either String a
 decodeMessage = parseJSON
   
 extractMessageLength :: String -> Int

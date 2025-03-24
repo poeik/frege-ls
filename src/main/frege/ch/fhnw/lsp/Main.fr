@@ -7,8 +7,6 @@ import Data.JSON
 import ch.fhnw.lsp.logger.Logger
 import ch.fhnw.lsp.rpc.Rpc
 import ch.fhnw.lsp.messages.Messages
-import ch.fhnw.lsp.rpc.Response
-import ch.fhnw.lsp.rpc.Request
 import ch.fhnw.lsp.env.LspEnv
 
 pure native fromChars "new java.lang.String" :: JArray Char -> String

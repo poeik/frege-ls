@@ -1,10 +1,12 @@
 module ch.fhnw.lsp.rpc.Response where
 
 import ch.fhnw.lsp.messages.initialize.model.InitializeResult
+import ch.fhnw.lsp.messages.Definition
 
 import Data.JSON
 
 data Response = InitializeResponse (Maybe Int) InitializeResult
+              | DefinitionResponse Int Location 
               | EmptyResponse
   
 
@@ -18,3 +20,10 @@ instance ToJSON Response where
               ("result", toJSON result)
            ]
   toJSON EmptyResponse = Struct []
+  toJSON (DefinitionResponse requestId location) = 
+    Struct [ 
+              ("jsonrpc", toJSON "2.0"),
+              ("id",      toJSON requestId),
+              ("result",  toJSON location)
+           ]
+

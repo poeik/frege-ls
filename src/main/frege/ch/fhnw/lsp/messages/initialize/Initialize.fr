@@ -9,9 +9,13 @@ import Control.monad.trans.MonadIO
 
 processInitializeMessage :: Logger -> InitializeRequestParams -> LspEnv InitializeResult
 processInitializeMessage log (InitializeRequestParams pid client) = do
-  case client of
-    Just client -> do
-      let version = maybe "" ((++) ", version ") client.version
-      liftIO (log $ "Connected to " ++ client.name ++ version ++ " (PID: " ++ show pid ++ ")")
-    otherwise -> liftIO $ log "Connected"
-  pure $ InitializeResult ServerCapabilities (Just (ServerInfo "new Frege LSP" (Just $ "v0.0.1")))
+  liftIO $ log (logClientInfos pid client)
+  pure $ InitializeResult (ServerCapabilities True) (Just (ServerInfo "new Frege LSP" (Just $ "v0.0.1")))
+
+logClientInfos :: Int -> Maybe ClientInfo -> String
+logClientInfos pid (Just client) =
+  let 
+    version = maybe "" ((++) ", version ") client.version 
+  in "Connected to " ++ client.name ++ version ++ " (PID: " ++ show pid ++ ")"
+logClientInfos pid _ = "Connected"
+

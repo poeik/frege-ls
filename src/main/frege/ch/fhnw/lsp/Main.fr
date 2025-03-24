@@ -33,16 +33,17 @@ mainLoop :: (String->IO ()) -> IO ()
 mainLoop log = do 
   result <- EitherT.run $ handleMessage log
   case result of 
+    Left  err      -> log $ "An error occured: " ++ err
     Right response -> sendResponse response
-    Left err -> log $ "An error occured: " ++ err
   mainLoop log
 
 handleMessage :: Logger -> LspEnv Response
 handleMessage log = do
   (length, newMessage) <- liftIO readMessage
-  (Method method) <- liftEither $ parseJSON newMessage
+  (Method method)      <- liftEither $ parseJSON newMessage
   liftIO $ log ("Received \"" ++ method ++ "\"-message with length: " ++ show length)
-  request <- liftEither $ decodeMessage newMessage
+  liftIO $ log ("Message:\n" ++ newMessage)
+  request   <- liftEither $ decodeMessage newMessage
   response  <- processMessage log request
   pure response
 

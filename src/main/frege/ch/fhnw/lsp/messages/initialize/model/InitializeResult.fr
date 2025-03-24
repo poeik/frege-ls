@@ -12,7 +12,7 @@ data ServerInfo = ServerInfo {
   version :: Maybe String
 }
 
-data ServerCapabilities = ServerCapabilities
+data ServerCapabilities = ServerCapabilities { definitionProvider :: Bool }
 
 instance ToJSON InitializeResult where
   toJSON InitializeResult { capabilities, serverInfo } =
@@ -25,7 +25,7 @@ instance ToJSON ServerInfo where
              ++ maybe [] (\v -> [("version", toJSON v)]) version )
 
 instance ToJSON ServerCapabilities where
-  toJSON ServerCapabilities = Struct []
+  toJSON (ServerCapabilities definitionProvider) = Struct [("definitionProvider", toJSON definitionProvider)]
 
 derive Show InitializeResult
 derive Show ServerInfo

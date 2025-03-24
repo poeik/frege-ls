@@ -1,13 +1,19 @@
 module ch.fhnw.lsp.rpc.Request where
 
 import ch.fhnw.lsp.messages.initialize.model.InitializeRequest
+import ch.fhnw.lsp.messages.Definition
 
 import Data.JSON
 
 data Request = InitializeRequest { 
-  id          :: Maybe Int,
-  params      :: InitializeRequestParams
-} | InitializedRequest
+                  id          :: Maybe Int,
+                  params      :: InitializeRequestParams
+             } 
+             | InitializedRequest 
+             | DefinitionRequest { 
+                  requestId :: Int,
+                  defParams :: DefinitionRequestParams
+             }
 
 data Method = Method String
 
@@ -21,6 +27,10 @@ instance FromJSON Request where
         pure InitializeRequest { id, params }
       "initialized" -> do
         pure InitializedRequest
+      "textDocument/definition" -> do
+        id <- field "id" as
+        defParams <- field "params" as
+        pure $ DefinitionRequest { requestId = id, defParams = defParams }
       unsupported -> do
         fail $ "Unsupported message with method \"" ++ unsupported ++ "\" received"
   fromJSON garbage = fail ("couldn't decode message from: " ++ show garbage)

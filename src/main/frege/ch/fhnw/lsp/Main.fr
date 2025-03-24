@@ -1,6 +1,5 @@
 module ch.fhnw.lsp.Main where
 
-import Control.monad.trans.MonadIO
 import Control.monad.trans.EitherT
 import Data.JSON
 
@@ -20,20 +19,21 @@ main (filePath : _) = do
 startLsp :: Logger -> IO ()
 startLsp log = do
  log "Started Frege LSP"
- forever (mainLoop log)
+ let st = initialState
+ forever (mainLoop log st)
       `catch` eof log
       `finally` log "Shutting down Frege LSP"
     where
       eof :: Logger -> EOFException -> IO ()
       eof log e = log $ "an error occured" ++ e.getMessage
 
-mainLoop :: (String->IO ()) -> IO ()
-mainLoop log = do 
-  result <- EitherT.run $ handleMessage log
+mainLoop :: (String->IO ()) -> LspState -> IO ()
+mainLoop log st = do 
+  (result, st) <- runLspEnv st $  handleMessage log
   case result of 
     Left  err      -> log $ "An error occured: " ++ err
     Right response -> sendResponse response
-  mainLoop log
+  mainLoop log st
 
 handleMessage :: Logger -> LspEnv Response
 handleMessage log = do

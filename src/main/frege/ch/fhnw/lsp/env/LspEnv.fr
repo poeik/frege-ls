@@ -1,8 +1,47 @@
 module ch.fhnw.lsp.env.LspEnv where
 
 import Control.monad.trans.EitherT
+import Control.monad.trans.MonadTrans
+import Control.monad.trans.MonadIO as M()
+import Control.monad.State
 
-type LspEnv a = EitherT String IO a
+import Data.HashMap
+
+initialState = LspState {
+  rootPath = "",
+  files    = empty
+}
+
+data LspFile = File {
+  content :: String 
+}
+
+data LspState = LspState { 
+  rootPath :: String 
+, files    :: HashMap String LspFile
+}
+
+type LspEnv a = EitherT String (StateT LspState IO) a
+
+liftState :: State LspState a -> LspEnv a
+liftState st = lift (promote st)
 
 liftEither :: Either String a -> LspEnv a
-liftEither = EitherT . pure
+liftEither (Right a)  = pure a
+liftEither (Left err) = left err
+
+liftIO :: IO a -> LspEnv a
+liftIO = M.liftIO
+
+get :: LspEnv LspState
+get = lift $ StateT.get
+
+put :: LspState -> LspEnv ()
+put = lift . StateT.put
+
+modify :: (LspState -> LspState) -> LspEnv ()
+modify = lift . StateT.modify
+
+runLspEnv :: LspState -> LspEnv a -> IO (Either String a, LspState)
+runLspEnv st env = runStateT (EitherT.run env) st
+

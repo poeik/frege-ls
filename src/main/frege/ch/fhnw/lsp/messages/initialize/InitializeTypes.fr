@@ -1,12 +1,23 @@
 module ch.fhnw.lsp.messages.initialize.InitializeTypes where
 
+import ch.fhnw.lsp.messages.GeneralLspTypes
+
 import Data.JSON
 
 data InitializeRequestParams = InitializeRequestParams {
-  processId  :: Int,
-  clientInfo :: Maybe ClientInfo
+  processId        :: Int
+, clientInfo       :: Maybe ClientInfo
+, workspaceFolders :: Maybe [WorkspaceFolder]
+, rootUri          :: Maybe URI
 }
-derive Show InitializeResult
+
+data WorkspaceFolder = WorkspaceFolder {
+  name :: String
+, uri  :: URI
+}
+
+instance Show WorkspaceFolder where
+  show folder = concat [folder.name, ": ", show folder.uri]
 
 data ClientInfo = ClientInfo {
   name    :: String,
@@ -17,6 +28,8 @@ data InitializeResult = InitializeResult {
   capabilities :: ServerCapabilities,
   serverInfo   :: Maybe ServerInfo
 }
+
+derive Show InitializeResult
 
 data ServerInfo = ServerInfo {
   name    :: String,
@@ -31,9 +44,16 @@ derive Show ServerCapabilities
 
 instance FromJSON InitializeRequestParams where
   fromJSON (Struct as) = do
-    processId  <- field "processId" as
-    clientInfo <- field "clientInfo" as
-    pure InitializeRequestParams { processId, clientInfo }
+    processId        <- field    "processId" as
+    clientInfo       <- optional "clientInfo" as
+    workspaceFolders <- optional "workspaceFolders" as
+    rootUri          <- optional "rootUri" as
+    pure InitializeRequestParams {
+      processId        = processId
+    , workspaceFolders = workspaceFolders
+    , rootUri          = rootUri
+    , clientInfo       = clientInfo 
+    }
   fromJSON garbage = fail ("couldn't decode MsgInitalizeParams from: " ++ show garbage)
 
 instance FromJSON ClientInfo where
@@ -43,6 +63,12 @@ instance FromJSON ClientInfo where
     pure ClientInfo { name, version }
   fromJSON garbage = fail ("couldn't decode ClientInfo from: " ++ show garbage)
 
+instance FromJSON WorkspaceFolder where
+  fromJSON (Struct as) = do
+    name   <- field "name" as
+    uri    <- field "uri" as
+    pure WorkspaceFolder { name = name, uri = uri}
+  fromJSON garbage = fail ("couldn't decode WorkspaceFolder from: " ++ show garbage)
 -------------  ToJSON instances ------------- 
 
 instance ToJSON InitializeResult where

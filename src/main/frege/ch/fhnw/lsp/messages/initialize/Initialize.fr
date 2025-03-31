@@ -4,14 +4,17 @@ import ch.fhnw.lsp.env.LspEnv
 import ch.fhnw.lsp.messages.initialize.InitializeTypes
 
 processInitializeMessage :: Monad m => InitializeRequestParams -> LspEnv m InitializeResult
-processInitializeMessage (InitializeRequestParams pid client) = do
-  logInfo (logClientInfos pid client)
+processInitializeMessage (init@(InitializeRequestParams _ _ _ _)) = do
+  logInfo $ logClientInfos init
   pure $ InitializeResult (ServerCapabilities True) (Just (ServerInfo "new Frege LSP" (Just $ "v0.0.1")))
 
-logClientInfos :: Int -> Maybe ClientInfo -> String
-logClientInfos pid (Just client) =
-  let 
-    version = maybe "" ((++) ", version ") client.version 
-  in "Connected to " ++ client.name ++ version ++ " (PID: " ++ show pid ++ ")"
-logClientInfos pid _ = "Connected"
-
+logClientInfos ::  InitializeRequestParams -> String
+logClientInfos (InitializeRequestParams pid client workspaceFolders rootUri) = let 
+    clientInfos = case client of
+      Just client -> " to " ++ client.name ++ maybe "" ((++) ", version ") client.version
+      Nothing     -> ""
+    root    = maybe "" (((++) ", rootUri: ") . show ) rootUri
+    ws      = fromMaybe [] workspaceFolders
+    folders = fold (\acc cur -> acc ++ ", " ++ show cur) "" ws
+  in
+    "Connected" ++ clientInfos ++ root ++ ", workspace folders: " ++ folders

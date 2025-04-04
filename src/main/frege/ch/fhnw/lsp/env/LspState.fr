@@ -1,0 +1,31 @@
+module ch.fhnw.lsp.env.LspState where
+
+import Java.Net(URI) 
+import Data.HashMap
+import Compiler.types.Global (Global, Options, SubSt)
+import ch.fhnw.lsp.logger.Logger
+
+initialState :: Monad m => Logger m -> LspState m
+initialState logger = LspState {
+  rootPath        = Nothing
+, globals         = empty
+, projectGlobal   = Nothing
+, logger          = logger
+}
+
+data LspState m = LspState { 
+  rootPath      :: Maybe URI 
+, globals       :: HashMap URI Global
+, projectGlobal :: Maybe Global
+, logger        :: Logger m
+}
+
+setProjectGlobal :: Monad m => Global -> LspState m -> LspState m
+setProjectGlobal global st = st.{ projectGlobal = Just global }
+
+setRootPath :: Monad m => URI -> LspState m -> LspState m
+setRootPath path st = st.{ rootPath = Just path }
+
+setGlobals :: Monad m => HashMap URI Global -> LspState m -> LspState m
+setGlobals globals st = st.{ globals = globals }
+

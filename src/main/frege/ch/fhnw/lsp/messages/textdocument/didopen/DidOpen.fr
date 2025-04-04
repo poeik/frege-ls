@@ -1,0 +1,10 @@
+module ch.fhnw.lsp.messages.textdocument.didopen.DidOpen where
+
+import ch.fhnw.lsp.env.LspEnv
+import ch.fhnw.lsp.messages.textdocument.didopen.DidOpenTypes
+
+processDidOpenNotification :: DidOpenRequestParams -> LspEnv IO ()
+processDidOpenNotification params = do
+  logInfo $ "opened: " ++ show params.textDocument.uri
+  pure ()
+

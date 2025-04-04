@@ -12,7 +12,7 @@ processInitializeMessage (init@(InitializeRequestParams _ _ _ _)) = do
   logInfo $ logClientInfos init
   global <- liftMonad standardCompileGlobal
   setGlobal global
-  pure $ InitializeResult (ServerCapabilities True) (Just (ServerInfo "new Frege LSP" (Just $ "v0.0.1")))
+  pure $ InitializeResult capabilities serverInfos
 
 logClientInfos ::  InitializeRequestParams -> String
 logClientInfos (InitializeRequestParams pid client workspaceFolders rootUri) = let 
@@ -27,3 +27,19 @@ logClientInfos (InitializeRequestParams pid client workspaceFolders rootUri) = l
 
 setGlobal :: Monad m => Global -> LspEnv m ()
 setGlobal = modify . setProjectGlobal
+
+serverInfos :: Maybe ServerInfo
+serverInfos = Just $ 
+  ServerInfo { 
+    name = "new Frege LSP"
+  , version = Just "v0.0.1"
+  }
+
+capabilities :: ServerCapabilities 
+capabilities = ServerCapabilities {
+  definitionProvider = True 
+, textDocumentSync   = TextDocumentSyncOptions {
+    openClose = True
+  , change = Full 
+  }
+}

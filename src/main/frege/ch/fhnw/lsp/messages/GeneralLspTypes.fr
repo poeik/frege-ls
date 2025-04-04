@@ -6,25 +6,32 @@ import Data.JSON
 data TextDocument = TextDocument {
   uri :: URI
 }
-
 derive Show TextDocument
 
+data TextDocumentItem = TextDocumentItem {
+  uri         :: URI
+, languageId  :: String
+, version     :: Int
+, text        :: String
+}
+derive Show TextDocumentItem
+
 data Location = Location {
-  uri   :: URI,
-  range :: Range
+  uri   :: URI 
+, range :: Range
 }
 
 derive Show Location
 
 data Range = Range {
-  start :: Position,
-  end   :: Position
+  start :: Position
+, end   :: Position
 }
 derive Show Range
 
 data Position = Position {
-  line      :: Int,
-  character :: Int
+  line      :: Int
+, character :: Int
 }
 
 derive Show Position
@@ -77,6 +84,20 @@ instance FromJSON TextDocument where
     uri <- field "uri" as
     pure TextDocument { uri }
   fromJSON garbage = fail ("couldn't decode TextDocument from: " ++ show garbage)
+
+instance FromJSON TextDocumentItem where
+  fromJSON (Struct as) = do
+    uri         <- field "uri" as
+    languageId  <- field "languageId" as
+    version     <- field "version" as
+    text        <- field "text" as
+    pure TextDocumentItem { 
+      uri = uri
+    , languageId = languageId
+    , version = version
+    , text = text 
+    }
+  fromJSON garbage = fail ("couldn't decode TextDocumentItem from: " ++ show garbage)
 
 instance FromJSON Location where
   fromJSON (Struct as) = do

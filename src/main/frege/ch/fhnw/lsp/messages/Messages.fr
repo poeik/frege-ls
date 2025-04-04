@@ -4,6 +4,8 @@ import ch.fhnw.lsp.messages.initialize.Initialize
 import ch.fhnw.lsp.messages.initialize.InitializeTypes
 import ch.fhnw.lsp.messages.textdocument.Definition
 import ch.fhnw.lsp.messages.textdocument.DefinitionTypes
+import ch.fhnw.lsp.messages.textdocument.didopen.DidOpen
+import ch.fhnw.lsp.messages.textdocument.didopen.DidOpenTypes
 import ch.fhnw.lsp.messages.GeneralLspTypes
 
 import ch.fhnw.lsp.env.LspEnv
@@ -14,11 +16,13 @@ processMessage :: Request -> LspEnv IO Response
 processMessage (InitializeRequest id params) = fmap (InitializeResponse id) (processInitializeMessage params)
 processMessage InitializedRequest            = pure EmptyResponse
 processMessage (DefinitionRequest id params) = pure $ (DefinitionResponse id) (processDefinitionMessage params)
+processMessage (DidOpenNotification params)  = fmap (const EmptyResponse) (processDidOpenNotification params)
 
 -- All supported requests
 data Request = InitializeRequest { id :: Int, initParams :: InitializeRequestParams } 
              | InitializedRequest 
              | DefinitionRequest { id :: Int, defParams  :: DefinitionRequestParams }
+             | DidOpenNotification { didOpenParams  :: DidOpenRequestParams }
 
 instance FromJSON Request where
   fromJSON (Struct as) = do
@@ -33,7 +37,10 @@ instance FromJSON Request where
       "textDocument/definition" -> do
         id        <- field "id" as
         defParams <- field "params" as
-        pure $ DefinitionRequest { id, defParams }
+        pure DefinitionRequest { id, defParams }
+      "textDocument/didOpen" -> do
+        didOpenParams <- field "params" as
+        pure DidOpenNotification { didOpenParams }
       unsupported -> do
         fail $ "Unsupported message with method \"" ++ unsupported ++ "\" received"
   fromJSON garbage = fail ("couldn't decode message from: " ++ show garbage)

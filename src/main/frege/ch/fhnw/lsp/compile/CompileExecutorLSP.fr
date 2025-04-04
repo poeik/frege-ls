@@ -1,5 +1,5 @@
 {- 
-  More or less copied from https://github.com/tricktron/frege-lsp-server/blob/main/src/main/frege/ch/fhnw/thga/fregelanguageserver/compile/CompileExecutorLSP.fr 
+- More or less copied from https://github.com/tricktron/frege-lsp-server/blob/main/src/main/frege/ch/fhnw/thga/fregelanguageserver/compile/CompileExecutorLSP.fr 
 -}
 module ch.fhnw.lsp.compile.CompileExecutorLSP where
 

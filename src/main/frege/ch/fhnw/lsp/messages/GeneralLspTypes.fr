@@ -56,8 +56,12 @@ derive Exceptional URISyntaxException
 
 native uriFromString "new java.net.URI" :: String -> STMutable s URI throws URISyntaxException
 
+
 data URI = native java.net.URI where  
   pure native toString :: URI -> String
+  pure native equals   :: URI -> URI -> Bool
+  pure native hashCode :: URI -> Int
+  pure native getPath  :: URI -> String
 
   fromString :: String -> (String | URI)
   fromString s = ST.run
@@ -69,6 +73,7 @@ data URI = native java.net.URI where
       \(e :: URISyntaxException) -> pure $ Left e.getMessage)
 
 instance Show URI where show = URI.toString
+instance Eq   URI where (==) = URI.equals
 
 -------------  FromJSON instances ------------- 
 

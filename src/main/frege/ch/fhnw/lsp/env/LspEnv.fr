@@ -4,26 +4,8 @@ import Control.monad.trans.EitherT
 import Control.monad.trans.MonadTrans as MT()
 import Control.monad.trans.MonadIO as M()
 import Control.monad.State
-import ch.fhnw.lsp.logger.Logger
 
-import Data.HashMap
-
-initialState :: Monad m => Logger m -> LspState m
-initialState logger = LspState {
-  rootPath = ""
-, files    = empty
-, logger   = logger
-}
-
-data LspFile = File {
-  content :: String 
-}
-
-data LspState m = LspState { 
-  rootPath :: String 
-, files    :: HashMap String LspFile
-, logger   :: Logger m
-}
+import ch.fhnw.lsp.env.LspState
 
 type LspEnv m a = Monad m => EitherT String (StateT (LspState m) m) a
 

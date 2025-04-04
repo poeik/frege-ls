@@ -7,6 +7,7 @@ import ch.fhnw.lsp.logger.Logger
 import ch.fhnw.lsp.rpc.Rpc
 import ch.fhnw.lsp.messages.Messages
 import ch.fhnw.lsp.env.LspEnv
+import ch.fhnw.lsp.env.LspState
 
 pure native fromChars "new java.lang.String" :: JArray Char -> String
 
@@ -18,9 +19,9 @@ main (filePath : _) = do
      
 startLsp :: Logger IO -> IO ()
 startLsp log = do
- log "Started Frege LSP"
- let st = initialState log
- forever (mainLoop st)
+  log "Started Frege LSP"
+  let st = initialState log
+  forever (mainLoop st)
       `catch` eof log
       `finally` log "Shutting down Frege LSP"
     where
@@ -40,7 +41,6 @@ handleMessage = do
   (length, newMessage) <- liftIO readMessage
   (Method method)      <- liftEither $ parseJSON newMessage
   logInfo ("Received \"" ++ method ++ "\"-message with length: " ++ show length)
-  logInfo ("Message:\n" ++ newMessage)
   request   <- liftEither $ decodeMessage newMessage
   response  <- processMessage request
   pure response

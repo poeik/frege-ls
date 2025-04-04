@@ -11,7 +11,7 @@ getEnvDefault :: String -> String -> String
 getEnvDefault defaultValue envName = maybe defaultValue id $ System.getenv envName
 
 rootOutputDir :: String
-rootOutputDir = ".frege"
+rootOutputDir = ".fregenew"
 
 standardCompileOptions :: Options
 standardCompileOptions = Options 

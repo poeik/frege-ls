@@ -25,6 +25,9 @@ liftMonad = MT.lift . MT.lift
 get :: Monad m => LspEnv m (LspState m)
 get = MT.lift $ StateT.get
 
+getSub :: Monad m => (LspState m -> a) -> LspEnv m a
+getSub accessor = fmap accessor get
+
 put :: Monad m => LspState m -> LspEnv m ()
 put = MT.lift . StateT.put
 

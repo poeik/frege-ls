@@ -29,3 +29,5 @@ setRootPath path st = st.{ rootPath = Just path }
 setGlobals :: Monad m => HashMap URI Global -> LspState m -> LspState m
 setGlobals globals st = st.{ globals = globals }
 
+projectGlobal :: LspState m -> Maybe Global
+projectGlobal st = st.projectGlobal

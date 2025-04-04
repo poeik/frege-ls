@@ -1,11 +1,17 @@
 module ch.fhnw.lsp.messages.initialize.Initialize where
 
-import ch.fhnw.lsp.env.LspEnv
-import ch.fhnw.lsp.messages.initialize.InitializeTypes
+import Compiler.types.Global (Global, Options, SubSt)
 
-processInitializeMessage :: Monad m => InitializeRequestParams -> LspEnv m InitializeResult
+import ch.fhnw.lsp.env.LspEnv
+import ch.fhnw.lsp.env.LspState
+import ch.fhnw.lsp.messages.initialize.InitializeTypes
+import ch.fhnw.lsp.compile.CompileGlobal
+
+processInitializeMessage :: InitializeRequestParams -> LspEnv IO InitializeResult
 processInitializeMessage (init@(InitializeRequestParams _ _ _ _)) = do
   logInfo $ logClientInfos init
+  global <- liftMonad standardCompileGlobal
+  setGlobal global
   pure $ InitializeResult (ServerCapabilities True) (Just (ServerInfo "new Frege LSP" (Just $ "v0.0.1")))
 
 logClientInfos ::  InitializeRequestParams -> String
@@ -18,3 +24,6 @@ logClientInfos (InitializeRequestParams pid client workspaceFolders rootUri) = l
     folders = fold (\acc cur -> acc ++ ", " ++ show cur) "" ws
   in
     "Connected" ++ clientInfos ++ root ++ ", workspace folders: " ++ folders
+
+setGlobal :: Monad m => Global -> LspEnv m ()
+setGlobal = modify . setProjectGlobal

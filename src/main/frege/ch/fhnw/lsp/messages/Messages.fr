@@ -10,7 +10,7 @@ import ch.fhnw.lsp.env.LspEnv
 
 import Data.JSON
 
-processMessage :: Monad m => Request -> LspEnv m Response
+processMessage :: Request -> LspEnv IO Response
 processMessage (InitializeRequest id params) = fmap (InitializeResponse id) (processInitializeMessage params)
 processMessage InitializedRequest            = pure EmptyResponse
 processMessage (DefinitionRequest id params) = pure $ (DefinitionResponse id) (processDefinitionMessage params)

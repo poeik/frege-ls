@@ -15,7 +15,7 @@ import Data.JSON
 processMessage :: Request -> LspEnv IO Response
 processMessage (InitializeRequest id params) = fmap (InitializeResponse id) (processInitializeMessage params)
 processMessage InitializedRequest            = pure EmptyResponse
-processMessage (DefinitionRequest id params) = pure $ (DefinitionResponse id) (processDefinitionMessage params)
+processMessage (DefinitionRequest id params) = fmap (DefinitionResponse id) (processDefinitionMessage params)
 processMessage (DidOpenNotification params)  = fmap (const EmptyResponse) (processDidOpenNotification params)
 
 -- All supported requests

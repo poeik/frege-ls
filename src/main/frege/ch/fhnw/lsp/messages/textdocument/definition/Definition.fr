@@ -1,15 +1,78 @@
 module ch.fhnw.lsp.messages.textdocument.Definition where
 
+import Compiler.types.Global(Global, Symbol)
+import Compiler.types.Positions as P()
+import Compiler.types.Symbols
+import Compiler.enums.TokenID as T()
+import Compiler.types.Tokens(Token)
+import Data.HashMap
+import Data.List(find)
+
+import ch.fhnw.lsp.env.LspEnv
+import ch.fhnw.lsp.env.LspState
 import ch.fhnw.lsp.messages.GeneralLspTypes
 import ch.fhnw.lsp.messages.textdocument.DefinitionTypes
 
-processDefinitionMessage :: DefinitionRequestParams -> Location
-processDefinitionMessage params = 
-  Location { 
-    uri   = params.textDocument.uri, 
-    range = Range { 
-      start = params.position.{ line = 0 },
-      end   = params.position.{ line = 0 }
-    }
-  }
+processDefinitionMessage :: Monad m => DefinitionRequestParams -> LspEnv m Location
+processDefinitionMessage params = do
+  let uri       = params.textDocument.uri
+  let cursorPos = params.position
+  globalsMap <- getSub globals
+  logInfo $ "all files: " ++ show (keys globalsMap)
+  global <- liftEither $ findGlobal uri globalsMap
+  token  <- liftEither $ findToken cursorPos global 
+  symbol <- liftEither $ findSymbol token global 
+  pure $ mkLocation symbol.pos token uri
+  where
+    mkLocation pos token uri = Location { uri = uri, range = posToRange pos token }
 
+findGlobal :: URI -> HashMap URI Global -> Either String Global
+findGlobal uri globals = note "No global for given URI found" $ globals.lookup uri
+
+findToken :: Position -> Global -> Either String Token
+findToken cursorPos global = do 
+    token  <- tokenUnderCursor cursorPos global
+    case token.tokid of 
+      id | id == T.VARID || id == T.CONID || id == T.QUALIFIER || id == T.SOMEOP -> pure token
+      _ -> Left "No valid token under cursor"
+
+findSymbol :: Token -> Global -> Either String Symbol
+findSymbol token global = note "No matching symbol found" findSymbol'
+   where 
+     findSymbol' = do 
+       qname  <- global.resolved token >>= hush
+       sym    <- global.findit qname
+       pure sym
+
+tokenUnderCursor:: Position -> Global -> Either String Token
+tokenUnderCursor cursorPos global =
+  let
+    tokens = global.sub.toks.toList
+  in
+  note "No token present under cursor" $ find isCursorOverToken tokens 
+  where
+    isCursorOverToken :: Token -> Bool
+    isCursorOverToken t =
+      -- token is 1 based, cursor 0
+      cursorPos.line == (t.line - 1)
+      && cursorPos.character < (t.col - 1 + (length t.value)) 
+      && cursorPos.character >= t.col - 1
+
+hush :: Either e a -> Maybe a
+hush (Right a) = Just a
+hush (Left _)  = Nothing
+
+note :: e -> Maybe a -> Either e a
+note _ (Just a) = Right a
+note e Nothing  = Left e
+
+posToRange :: P.Position -> Token -> Range
+posToRange pos token = Range {
+  -- token is 1 based, cursor 0
+  start = Position { line = first.line - 1, character = first.col - 1 }
+, end   = Position { line = last.line  - 1, character = last.col  - 1 + len }
+}
+  where 
+    first = pos.first
+    last  = pos.last
+    len   = length token.value

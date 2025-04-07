@@ -1,5 +1,6 @@
 module ch.fhnw.lsp.messages.GeneralLspTypes where
 
+import Compiler.types.Global(Global)
 import Data.JSON
 
 
@@ -63,8 +64,10 @@ data URI = native java.net.URI where
   pure native hashCode :: URI -> Int
   pure native getPath  :: URI -> String
 
-  fromString :: String -> (String | URI)
-  fromString s = ST.run
+  fromGlobal   :: Global -> (String | URI)
+  fromGlobal g = fromString $ "file://" ++ g.options.source
+  fromString      :: String -> (String | URI)
+  fromString s    = ST.run
     (do
       uri <- fmap (readonly id) (uriFromString s)
       x   <- uri

@@ -2,7 +2,6 @@ module ch.fhnw.lsp.messages.textdocument.didopen.DidOpen where
 
 import Compiler.types.Global(Global)
 
-
 import ch.fhnw.lsp.messages.GeneralLspTypes(URI)
 import ch.fhnw.lsp.env.LspEnv
 import ch.fhnw.lsp.env.LspState
@@ -22,13 +21,11 @@ processDidOpenNotification params = do
 updateURIGlobals ::  URI -> Global -> LspEnv IO ()
 updateURIGlobals openedUri projectGlobal = do
   newGlobals     <- liftIO $ compileMakeLSP openedUri.getPath projectGlobal
-  let kv         = map (\g -> (uriFromGlobal g, g)) newGlobals
+  let kv         = map (\g -> (URI.fromGlobal g, g)) newGlobals
   let globalsMap = fromList $ dropLefts kv
   modify $ setGlobals globalsMap
   logInfo $ "Loaded sources: " ++ show (map (\g -> g.options.source) newGlobals)
 
-uriFromGlobal :: Global -> (String | URI)
-uriFromGlobal g = URI.fromString g.options.source
 
 dropLefts :: [((String | URI), Global)] -> [(URI, Global)]
 dropLefts xs = [ (uri, g) | (Right uri, g) <- xs ]

@@ -3,6 +3,7 @@ module ch.fhnw.lsp.messages.textdocument.Definition where
 import Compiler.types.Global(Global, Symbol)
 import Compiler.types.Positions as P()
 import Compiler.types.Symbols
+import Compiler.types.QNames
 import Compiler.enums.TokenID as T()
 import Compiler.types.Tokens(Token)
 import Data.HashMap
@@ -12,19 +13,20 @@ import ch.fhnw.lsp.env.LspEnv
 import ch.fhnw.lsp.env.LspState
 import ch.fhnw.lsp.messages.GeneralLspTypes
 import ch.fhnw.lsp.messages.textdocument.DefinitionTypes
+import ch.fhnw.lsp.utils.Utils
 
 processDefinitionMessage :: Monad m => DefinitionRequestParams -> LspEnv m Location
 processDefinitionMessage params = do
-  let uri       = params.textDocument.uri
-  let cursorPos = params.position
-  globalsMap <- getSub globals
-  logInfo $ "all files: " ++ show (keys globalsMap)
-  global <- liftEither $ findGlobal uri globalsMap
-  token  <- liftEither $ findToken cursorPos global 
-  symbol <- liftEither $ findSymbol token global 
-  pure $ mkLocation symbol.pos token uri
-  where
-    mkLocation pos token uri = Location { uri = uri, range = posToRange pos token }
+  let currentUri = params.textDocument.uri
+  let cursorPos  = params.position
+  globalsMap    <- getSub globals
+  currentGlobal <- liftEither $ findGlobal currentUri globalsMap
+  cursorToken   <- liftEither $ findToken  cursorPos currentGlobal 
+  symbol        <- liftEither $ findSymbol cursorToken currentGlobal 
+  projectRoot   <- getSub rootPath
+  file          <- liftEither $ getFile projectRoot currentGlobal symbol globalsMap
+  range         <- liftEither $ posToRange symbol.pos cursorToken
+  pure Location { uri = file, range = range}
 
 findGlobal :: URI -> HashMap URI Global -> Either String Global
 findGlobal uri globals = note "No global for given URI found" $ globals.lookup uri
@@ -37,11 +39,11 @@ findToken cursorPos global = do
       _ -> Left "No valid token under cursor"
 
 findSymbol :: Token -> Global -> Either String Symbol
-findSymbol token global = note "No matching symbol found" findSymbol'
+findSymbol token global =  findSymbol'
    where 
-     findSymbol' = do 
-       qname  <- global.resolved token >>= hush
-       sym    <- global.findit qname
+     findSymbol' = do
+       qname  <- note "No matching qname found"  $ global.resolved token >>= hush
+       sym    <- note "No matching symbol found" $ global.find qname
        pure sym
 
 tokenUnderCursor:: Position -> Global -> Either String Token
@@ -58,21 +60,33 @@ tokenUnderCursor cursorPos global =
       && cursorPos.character < (t.col - 1 + (length t.value)) 
       && cursorPos.character >= t.col - 1
 
-hush :: Either e a -> Maybe a
-hush (Right a) = Just a
-hush (Left _)  = Nothing
-
-note :: e -> Maybe a -> Either e a
-note _ (Just a) = Right a
-note e Nothing  = Left e
-
-posToRange :: P.Position -> Token -> Range
-posToRange pos token = Range {
-  -- token is 1 based, cursor 0
-  start = Position { line = first.line - 1, character = first.col - 1 }
-, end   = Position { line = last.line  - 1, character = last.col  - 1 + len }
-}
+posToRange :: P.Position -> Token -> (String | Range)
+posToRange pos token = do
+  let result = Range {
+    -- token is 1 based, cursor 0
+    start = Position { line = first.line - 1, character = first.col - 1 }
+  , end   = Position { line = last.line  - 1, character = last.col  - 1 + len }
+  }
+  if result.start.line < 0 || result.start.character < 0 then
+    Left "Received illegal source position for this token"
+  else pure result
   where 
     first = pos.first
     last  = pos.last
     len   = length token.value
+
+getFile :: (String | URI)  -> Global -> Symbol -> HashMap URI Global -> (String | URI)
+getFile root global symbol m = do
+    r <- root
+    case symbol.name of
+      Local _ _ -> URI.fromGlobal r global
+      name -> do
+        let pack = name.getpack
+        file <- URI.fromPackage r global pack
+        if member file m then 
+          pure file 
+        else 
+          -- if the file is not loaded as global right now, 
+          -- it is either an external package or a definition part of the prelude 
+          -- in this case we just jump to the line of the import
+          URI.fromGlobal r global

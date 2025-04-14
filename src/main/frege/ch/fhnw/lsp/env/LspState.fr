@@ -7,30 +7,33 @@ import ch.fhnw.lsp.logger.Logger
 
 initialState :: Monad m => Logger m -> LspState m
 initialState logger = LspState {
-  rootPath        = Nothing
+  rootPath        = Left "No root path provided"
 , globals         = empty
 , projectGlobal   = Nothing
 , logger          = logger
 }
 
 data LspState m = LspState { 
-  rootPath      :: Maybe URI 
+  rootPath      :: Either String URI 
 , globals       :: HashMap URI Global
 , projectGlobal :: Maybe Global
 , logger        :: Logger m
 }
 
-setProjectGlobal :: Monad m => Global -> LspState m -> LspState m
-setProjectGlobal global st = st.{ projectGlobal = Just global }
-
-setRootPath :: Monad m => URI -> LspState m -> LspState m
-setRootPath path st = st.{ rootPath = Just path }
-
 setGlobals :: Monad m => HashMap URI Global -> LspState m -> LspState m
 setGlobals globals st = st.{ globals = globals }
 
+updateGlobals :: Monad m => HashMap URI Global -> LspState m -> LspState m
+updateGlobals newGlobals st = st.{ globals = updated }
+  where
+    updated = union newGlobals st.globals
+    
+  
 globals :: Monad m => LspState m -> HashMap URI Global
 globals st = st.globals
 
 projectGlobal :: LspState m -> Maybe Global
 projectGlobal st = st.projectGlobal
+
+rootPath :: Monad m => LspState m -> (String | URI)
+rootPath st = st.rootPath

@@ -20,38 +20,38 @@ processDefinitionMessage params = do
   let currentUri = params.textDocument.uri
   let cursorPos  = params.position
   globalsMap    <- getSub globals
-  currentGlobal <- liftEither $ findGlobal currentUri globalsMap
-  cursorToken   <- liftEither $ findToken  cursorPos currentGlobal 
-  symbol        <- liftEither $ findSymbol cursorToken currentGlobal 
+  currentGlobal <- liftResult $ findGlobal currentUri globalsMap
+  cursorToken   <- liftResult $ findToken  cursorPos currentGlobal 
+  symbol        <- liftResult $ findSymbol cursorToken currentGlobal 
   projectRoot   <- getSub rootPath
-  file          <- liftEither $ getFile projectRoot currentGlobal symbol globalsMap
-  range         <- liftEither $ posToRange symbol.pos cursorToken
+  file          <- liftResult $ getFile projectRoot currentGlobal symbol globalsMap
+  range         <- liftResult $ posToRange symbol.pos cursorToken
   pure Location { uri = file, range = range}
 
-findGlobal :: URI -> HashMap URI Global -> Either String Global
-findGlobal uri globals = note "No global for given URI found" $ globals.lookup uri
+findGlobal :: URI -> HashMap URI Global -> ServerResult Global
+findGlobal uri globals = note Error "No global for given URI found" $ globals.lookup uri
 
-findToken :: Position -> Global -> Either String Token
+findToken :: Position -> Global -> ServerResult Token
 findToken cursorPos global = do 
     token  <- tokenUnderCursor cursorPos global
     case token.tokid of 
       id | id == T.VARID || id == T.CONID || id == T.QUALIFIER || id == T.SOMEOP -> pure token
-      _ -> Left "No valid token under cursor"
+      _ -> report "No valid token under cursor"
 
-findSymbol :: Token -> Global -> Either String Symbol
+findSymbol :: Token -> Global -> ServerResult Symbol
 findSymbol token global =  findSymbol'
    where 
      findSymbol' = do
-       qname  <- note "No matching qname found"  $ global.resolved token >>= hush
-       sym    <- note "No matching symbol found" $ global.find qname
+       qname  <- note Error "No matching qname found"  $ global.resolved token >>= hush
+       sym    <- note Error "No matching symbol found" $ global.find qname
        pure sym
 
-tokenUnderCursor:: Position -> Global -> Either String Token
+tokenUnderCursor:: Position -> Global -> ServerResult Token
 tokenUnderCursor cursorPos global =
   let
     tokens = global.sub.toks.toList
   in
-  note "No token present under cursor" $ find isCursorOverToken tokens 
+  note Error "No token present under cursor" $ find isCursorOverToken tokens 
   where
     isCursorOverToken :: Token -> Bool
     isCursorOverToken t =
@@ -60,7 +60,7 @@ tokenUnderCursor cursorPos global =
       && cursorPos.character < (t.col - 1 + (length t.value)) 
       && cursorPos.character >= t.col - 1
 
-posToRange :: P.Position -> Token -> (String | Range)
+posToRange :: P.Position -> Token -> ServerResult Range
 posToRange pos token = do
   let result = Range {
     -- token is 1 based, cursor 0
@@ -68,25 +68,25 @@ posToRange pos token = do
   , end   = Position { line = last.line  - 1, character = last.col  - 1 + len }
   }
   if result.start.line < 0 || result.start.character < 0 then
-    Left "Received illegal source position for this token"
+    report "Received illegal source position for this token"
   else pure result
   where 
     first = pos.first
     last  = pos.last
     len   = length token.value
 
-getFile :: (String | URI)  -> Global -> Symbol -> HashMap URI Global -> (String | URI)
+getFile :: ServerResult URI  -> Global -> Symbol -> HashMap URI Global -> ServerResult URI
 getFile root global symbol m = do
     r <- root
     case symbol.name of
-      Local _ _ -> URI.fromGlobal r global
+      Local _ _ -> asServerResult $ URI.fromGlobal r global
       name -> do
         let pack = name.getpack
-        file <- URI.fromPackage r global pack
+        file <- asServerResult $ URI.fromPackage r global pack
         if member file m then 
           pure file 
         else 
           -- if the file is not loaded as global right now, 
           -- it is either an external package or a definition part of the prelude 
           -- in this case we just jump to the line of the import
-          URI.fromGlobal r global
+          asServerResult $ URI.fromGlobal r global

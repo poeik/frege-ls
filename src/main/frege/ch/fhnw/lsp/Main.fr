@@ -32,8 +32,8 @@ mainLoop :: LspState IO -> IO ()
 mainLoop st = do 
   (result, st) <- runLspEnv st $ handleMessage
   case result of 
-    Left  err      -> st.logger $ "An error occured: " ++ err
-    Right response -> sendResponse response
+    Left  (Error err) -> st.logger $ "An error occured: " ++ err
+    Right response    -> sendResponse response
   mainLoop st
 
 handleMessage :: LspEnv IO Response

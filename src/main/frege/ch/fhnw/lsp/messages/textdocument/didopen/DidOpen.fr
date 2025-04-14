@@ -21,7 +21,7 @@ processDidOpenNotification params = do
 updateURIGlobals :: URI -> Global -> LspEnv IO ()
 updateURIGlobals openedUri projectGlobal = do
   newGlobals     <- liftIO $ compileMakeLSP openedUri.getPath projectGlobal
-  r              <- getSub rootPath >>= liftEither
+  r              <- getSub rootPath >>= liftResult
   let kv         = map (\g -> (URI.fromGlobal r g, g)) newGlobals
   let globalsMap = fromList $ dropLefts kv
   modify $ updateGlobals globalsMap

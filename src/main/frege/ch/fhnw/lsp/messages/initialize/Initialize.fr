@@ -1,7 +1,5 @@
 module ch.fhnw.lsp.messages.initialize.Initialize where
 
-import Compiler.types.Global (Global, Options, SubSt)
-
 import ch.fhnw.lsp.env.LspEnv
 import ch.fhnw.lsp.env.LspState
 import ch.fhnw.lsp.messages.initialize.InitializeTypes
@@ -12,7 +10,7 @@ processInitializeMessage :: InitializeRequestParams -> LspEnv IO InitializeResul
 processInitializeMessage (init@(InitializeRequestParams _ _ _ _)) = do
   logInfo $ logClientInfos init
   let options = fromGradle "src/main/frege" ""
-  rootDir <- liftEither $ readRootDir init.workspaceFolders
+  rootDir <- liftResult $ readRootDir init.workspaceFolders
   global  <- liftMonad $ fromOptionsLSP options
 
   modify (\cur -> cur.{ projectGlobal = Just global, rootPath = Right rootDir })
@@ -29,10 +27,10 @@ logClientInfos (InitializeRequestParams pid client workspaceFolders rootUri) = l
   in
     "Connected" ++ clientInfos ++ root ++ ", workspace folders: " ++ folders
 
-readRootDir :: Maybe [WorkspaceFolder] -> (String | URI)
-readRootDir (Just (_:_:_)) = Left "The Frege language server does not support multi root projects"
+readRootDir :: Maybe [WorkspaceFolder] -> ServerResult URI
+readRootDir (Just (_:_:_)) = report "The Frege language server does not support multi root projects"
 readRootDir (Just (r:[]))  = Right r.uri
-readRootDir _ = Left "Please specify a root directory"
+readRootDir _              = report "Please specify a root directory"
 
 serverInfos :: Maybe ServerInfo
 serverInfos = Just $ 

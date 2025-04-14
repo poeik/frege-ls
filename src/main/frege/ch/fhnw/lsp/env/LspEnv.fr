@@ -7,14 +7,18 @@ import Control.monad.State
 
 import ch.fhnw.lsp.env.LspState
 
-type LspEnv m a = Monad m => EitherT String (StateT (LspState m) m) a
+type LspEnv m a = Monad m => EitherT ServerError (StateT (LspState m) m) a
 
 liftState :: Monad m => State (LspState m) a -> LspEnv m a
 liftState st = MT.lift (promote st)
 
-liftEither :: Monad m => Either String a -> LspEnv m a
+liftEither :: Monad m => (String | a) -> LspEnv m a
 liftEither (Right a)  = pure a
-liftEither (Left err) = left err
+liftEither (Left err) = liftResult $ report err
+
+liftResult :: Monad m => ServerResult a -> LspEnv m a
+liftResult (Right a)  = pure a
+liftResult (Left err) = left err
 
 liftIO :: IO a -> LspEnv IO a
 liftIO = M.liftIO
@@ -23,7 +27,7 @@ liftMonad :: Monad m => m a -> LspEnv m a
 liftMonad = MT.lift . MT.lift
 
 get :: Monad m => LspEnv m (LspState m)
-get = MT.lift $ StateT.get
+get = MT.lift StateT.get
 
 getSub :: Monad m => (LspState m -> a) -> LspEnv m a
 getSub accessor = fmap accessor get
@@ -34,7 +38,7 @@ put = MT.lift . StateT.put
 modify :: Monad m => (LspState m -> LspState m) -> LspEnv m ()
 modify = MT.lift . StateT.modify
 
-runLspEnv :: Monad m => LspState m -> LspEnv m a -> m (Either String a, LspState m)
+runLspEnv :: Monad m => LspState m -> LspEnv m a -> m (ServerResult a, LspState m)
 runLspEnv st env = runStateT (EitherT.run env) st
 
 logInfo :: Monad m => String -> LspEnv m ()

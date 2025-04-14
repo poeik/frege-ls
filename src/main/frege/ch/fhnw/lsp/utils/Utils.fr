@@ -4,6 +4,6 @@ hush :: Either e a -> Maybe a
 hush (Right a) = Just a
 hush (Left _)  = Nothing
 
-note :: e -> Maybe a -> Either e a
-note _ (Just a) = Right a
-note e Nothing  = Left e
+note :: (e -> e') -> e ->  Maybe a -> Either e' a
+note _ _ (Just a) = Right a
+note f e Nothing  = Left $ f e

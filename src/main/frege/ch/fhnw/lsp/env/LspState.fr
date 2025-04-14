@@ -5,20 +5,30 @@ import Data.HashMap
 import Compiler.types.Global (Global, Options, SubSt)
 import ch.fhnw.lsp.logger.Logger
 
+type ServerResult a = (ServerError | a)
+data ServerError = Error String
+
 initialState :: Monad m => Logger m -> LspState m
 initialState logger = LspState {
-  rootPath        = Left "No root path provided"
+  rootPath        = report "No root path provided"
 , globals         = empty
 , projectGlobal   = Nothing
 , logger          = logger
 }
 
 data LspState m = LspState { 
-  rootPath      :: Either String URI 
+  rootPath      :: ServerResult URI 
 , globals       :: HashMap URI Global
 , projectGlobal :: Maybe Global
 , logger        :: Logger m
 }
+
+report :: String -> ServerResult a
+report = Left . Error
+
+asServerResult :: (String | a) -> ServerResult a
+asServerResult (Right a) = Right a
+asServerResult (Left e)  = report e
 
 setGlobals :: Monad m => HashMap URI Global -> LspState m -> LspState m
 setGlobals globals st = st.{ globals = globals }
@@ -27,7 +37,6 @@ updateGlobals :: Monad m => HashMap URI Global -> LspState m -> LspState m
 updateGlobals newGlobals st = st.{ globals = updated }
   where
     updated = union newGlobals st.globals
-    
   
 globals :: Monad m => LspState m -> HashMap URI Global
 globals st = st.globals
@@ -35,5 +44,5 @@ globals st = st.globals
 projectGlobal :: LspState m -> Maybe Global
 projectGlobal st = st.projectGlobal
 
-rootPath :: Monad m => LspState m -> (String | URI)
+rootPath :: Monad m => LspState m -> ServerResult URI
 rootPath st = st.rootPath

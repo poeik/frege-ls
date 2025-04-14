@@ -1,8 +1,8 @@
 module ch.fhnw.lsp.messages.GeneralLspTypes where
 
 import Compiler.types.Global(Global)
+import Compiler.types.Packs(Pack)
 import Data.JSON
-
 
 data TextDocument = TextDocument {
   uri :: URI
@@ -64,8 +64,14 @@ data URI = native java.net.URI where
   pure native hashCode :: URI -> Int
   pure native getPath  :: URI -> String
 
-  fromGlobal   :: Global -> (String | URI)
-  fromGlobal g = fromString $ "file://" ++ g.options.source
+  withFileScheme = (++) "file://" 
+  fromGlobal   :: URI -> Global -> (String | URI)
+  fromGlobal r g = fromPackage r g g.sub.thisPack
+  fromPackage :: URI -> Global -> Pack -> (String | URI)
+  fromPackage r g p = (fromString . withFileScheme) $ path 
+    where 
+      path = concat [r.getPath, "/", concat g.sourcePath, "/", replaceDotWithSlash (Global.unpack g p), ".fr"]
+      replaceDotWithSlash s = s.replace '.' '/'
   fromString      :: String -> (String | URI)
   fromString s    = ST.run
     (do

@@ -18,14 +18,15 @@ processDidOpenNotification params = do
     Nothing -> pure ()
     Just g  -> updateURIGlobals params.textDocument.uri g
 
-updateURIGlobals ::  URI -> Global -> LspEnv IO ()
+updateURIGlobals :: URI -> Global -> LspEnv IO ()
 updateURIGlobals openedUri projectGlobal = do
   newGlobals     <- liftIO $ compileMakeLSP openedUri.getPath projectGlobal
-  let kv         = map (\g -> (URI.fromGlobal g, g)) newGlobals
+  r              <- getSub rootPath >>= liftEither
+  let kv         = map (\g -> (URI.fromGlobal r g, g)) newGlobals
   let globalsMap = fromList $ dropLefts kv
-  modify $ setGlobals globalsMap
-  logInfo $ "Loaded sources: " ++ show (map (\g -> g.options.source) newGlobals)
-
+  modify $ updateGlobals globalsMap
+  updatedGlobals <- getSub globals
+  logInfo $ "Loaded sources: " ++ (show . keys) updatedGlobals
 
 dropLefts :: [((String | URI), Global)] -> [(URI, Global)]
 dropLefts xs = [ (uri, g) | (Right uri, g) <- xs ]

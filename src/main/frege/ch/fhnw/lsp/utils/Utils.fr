@@ -1,0 +1,9 @@
+module ch.fhnw.lsp.utils.Utils where
+
+hush :: Either e a -> Maybe a
+hush (Right a) = Just a
+hush (Left _)  = Nothing
+
+note :: e -> Maybe a -> Either e a
+note _ (Just a) = Right a
+note e Nothing  = Left e

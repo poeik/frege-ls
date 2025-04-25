@@ -41,17 +41,20 @@ data ServerCapabilities = ServerCapabilities {
   definitionProvider :: Bool
 , textDocumentSync   :: TextDocumentSyncOptions
 }
+derive Show ServerCapabilities
 
 data TextDocumentSyncOptions = TextDocumentSyncOptions {
   openClose :: Bool
 , change    :: TextDocumentSyncKind
+, save      :: SaveOptions
 }
 derive Show TextDocumentSyncOptions
 
 data TextDocumentSyncKind = Full | None | Incremental
 derive Show TextDocumentSyncKind
 
-derive Show ServerCapabilities
+data SaveOptions = SaveOptions { includeText :: Bool }
+derive Show SaveOptions
 
 -------------  FromJSON instances ------------- 
 
@@ -95,16 +98,21 @@ instance ToJSON ServerInfo where
              ++ maybe [] (\v -> [("version", toJSON v)]) version )
 
 instance ToJSON TextDocumentSyncOptions where
-  toJSON (TextDocumentSyncOptions openClose change) =
+  toJSON (TextDocumentSyncOptions openClose change save) =
     Struct [
       ("openClose", toJSON openClose)
     , ("change",    toJSON change)
+    , ("save",      toJSON save)
     ]
 
 instance ToJSON TextDocumentSyncKind where
   toJSON None        = Number "0"
   toJSON Full        = Number "1"
   toJSON Incremental = Number "2"
+
+instance ToJSON SaveOptions where
+  toJSON (SaveOptions includeText) = 
+    Struct [("includeText", toJSON includeText)]
 
 instance ToJSON ServerCapabilities where
   toJSON (ServerCapabilities definitionProvider textDocumentSync) = 

@@ -1,0 +1,24 @@
+module ch.fhnw.lsp.utils.Globals where
+
+import Compiler.types.Global(Global)
+
+import ch.fhnw.lsp.messages.GeneralLspTypes(URI)
+import ch.fhnw.lsp.env.LspEnv
+import ch.fhnw.lsp.env.LspState
+import ch.fhnw.lsp.compile.CompileExecutorLSP
+
+import Data.HashMap
+
+updateURIGlobals :: URI -> Global -> LspEnv IO ()
+updateURIGlobals openedUri projectGlobal = do
+  newGlobals     <- liftIO $ compileMakeLSP openedUri.getPath projectGlobal
+  r              <- getSub rootPath >>= liftResult
+  let kv          = map (\g -> (URI.fromGlobal r g, g)) newGlobals
+  let globalsMap  = fromList $ dropLefts kv
+  modify $ updateGlobals globalsMap
+  updatedGlobals <- getSub globals
+  logInfo $ "sources: " ++ (show . keys) updatedGlobals
+
+  where
+    dropLefts :: [((String | URI), Global)] -> [(URI, Global)]
+    dropLefts xs = [ (uri, g) | (Right uri, g) <- xs ]

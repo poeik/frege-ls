@@ -6,6 +6,8 @@ import ch.fhnw.lsp.messages.textdocument.Definition
 import ch.fhnw.lsp.messages.textdocument.DefinitionTypes
 import ch.fhnw.lsp.messages.textdocument.didopen.DidOpen
 import ch.fhnw.lsp.messages.textdocument.didopen.DidOpenTypes
+import ch.fhnw.lsp.messages.textdocument.didsave.DidSave
+import ch.fhnw.lsp.messages.textdocument.didsave.DidSaveTypes
 import ch.fhnw.lsp.messages.GeneralLspTypes
 
 import ch.fhnw.lsp.env.LspEnv
@@ -17,12 +19,14 @@ processMessage (InitializeRequest id params) = fmap (InitializeResponse id) (pro
 processMessage InitializedRequest            = pure EmptyResponse
 processMessage (DefinitionRequest id params) = fmap (DefinitionResponse id) (processDefinitionMessage params)
 processMessage (DidOpenNotification params)  = fmap (const EmptyResponse) (processDidOpenNotification params)
+processMessage (DidSaveNotification params)  = fmap (const EmptyResponse) (processDidSaveNotification params)
 
 -- All supported requests
 data Request = InitializeRequest { id :: Int, initParams :: InitializeRequestParams } 
+             | DefinitionRequest { id :: Int, defParams :: DefinitionRequestParams }
+             | DidOpenNotification { didOpenParams :: DidOpenRequestParams }
+             | DidSaveNotification { didSaveParams :: DidSaveNotificationParams }
              | InitializedRequest 
-             | DefinitionRequest { id :: Int, defParams  :: DefinitionRequestParams }
-             | DidOpenNotification { didOpenParams  :: DidOpenRequestParams }
 
 instance FromJSON Request where
   fromJSON (Struct as) = do
@@ -41,6 +45,9 @@ instance FromJSON Request where
       "textDocument/didOpen" -> do
         didOpenParams <- field "params" as
         pure DidOpenNotification { didOpenParams }
+      "textDocument/didSave" -> do
+        didSaveParams <- field "params" as
+        pure DidSaveNotification { didSaveParams }
       unsupported -> do
         fail $ "Unsupported message with method \"" ++ unsupported ++ "\" received"
   fromJSON garbage = fail ("couldn't decode message from: " ++ show garbage)

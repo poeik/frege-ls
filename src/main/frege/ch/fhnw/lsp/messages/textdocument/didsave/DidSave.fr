@@ -1,14 +1,14 @@
-module ch.fhnw.lsp.messages.textdocument.didopen.DidOpen where
+module ch.fhnw.lsp.messages.textdocument.didsave.DidSave where
 
 import ch.fhnw.lsp.messages.GeneralLspTypes(URI)
 import ch.fhnw.lsp.env.LspEnv
 import ch.fhnw.lsp.env.LspState
-import ch.fhnw.lsp.messages.textdocument.didopen.DidOpenTypes
+import ch.fhnw.lsp.messages.textdocument.didsave.DidSaveTypes
 import ch.fhnw.lsp.utils.Globals(updateURIGlobals)
 
-processDidOpenNotification :: DidOpenRequestParams -> LspEnv IO ()
-processDidOpenNotification params = do
-  logInfo $ "opened: " ++ show params.textDocument.uri.getPath
+processDidSaveNotification :: DidSaveNotificationParams -> LspEnv IO ()
+processDidSaveNotification params = do
+  logInfo $ "saved: " ++ show params.textDocument.uri.getPath
   global     <- getSub projectGlobal
   case global of
     Nothing -> pure ()

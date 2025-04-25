@@ -4,12 +4,16 @@ import ch.fhnw.lsp.env.LspEnv
 import ch.fhnw.lsp.env.LspState
 import ch.fhnw.lsp.messages.initialize.InitializeTypes
 import ch.fhnw.lsp.compile.CompileExecutorLSP(fromGradle, fromOptionsLSP)
+import ch.fhnw.lsp.compile.CompileOptions(standardCompileOptions)
 import ch.fhnw.lsp.messages.GeneralLspTypes
+import Compiler.types.Global (Options)
+import Java.IO as JIO()
 
 processInitializeMessage :: InitializeRequestParams -> LspEnv IO InitializeResult
 processInitializeMessage (init@(InitializeRequestParams _ _ _ _)) = do
   logInfo $ logClientInfos init
-  let options = fromGradle "src/main/frege" ""
+  let options = standardCompileOptions
+  setupCompileDir options
   rootDir <- liftResult $ readRootDir init.workspaceFolders
   global  <- liftMonad $ fromOptionsLSP options
 
@@ -32,6 +36,15 @@ readRootDir (Just (_:_:_)) = report "The Frege language server does not support 
 readRootDir (Just (r:[]))  = Right r.uri
 readRootDir _              = report "Please specify a root directory"
 
+--- The output directory needs  to be created before the compiler runs the
+--- first time. Otherwise we get compiler errors
+setupCompileDir :: Options -> LspEnv IO ()
+setupCompileDir opt = do
+  let outputdir = opt.dir
+  let dir = JIO.File.new outputdir
+  liftIO dir.mkdirs
+  pure ()
+
 serverInfos :: Maybe ServerInfo
 serverInfos = Just $ 
   ServerInfo { 
@@ -45,5 +58,6 @@ capabilities = ServerCapabilities {
 , textDocumentSync   = TextDocumentSyncOptions {
     openClose = True
   , change = Full 
+  , save = SaveOptions { includeText = True }
   }
 }

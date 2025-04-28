@@ -88,21 +88,28 @@ getFile root sourceGlobal sourceSymbol m = do
       name -> do
         let pack = name.getpack
         file <- liftResult $ asServerResult ( URI.fromPackage r sourceGlobal pack)
-        updateURIGlobals file
 
         case lookup file m of
           Nothing -> do
-            logInfo $ "not loaded as global: " ++ show file
-            -- if the file is not loaded as global right now, 
-            -- it is either an external package or a definition part of the prelude 
-            -- in this case we just jump to the line of the import
-            uri <- liftResult $ asServerResult (URI.fromGlobal r sourceGlobal)
-            pure (uri, sourceSymbol)
-          Just global  -> do 
-            sym <- liftResult $ findSymbolInDifferentGlobal global sourceSymbol
-            logInfo $ "already loaded a global: " ++ show file
-            pure (file, sym)
+              maybeGlobal <- updateURIGlobals file
+              case maybeGlobal of 
+                Nothing -> do
+                  -- if the file is not loaded as global right now, 
+                  -- it is either an external package or a definition part of the prelude 
+                  -- in this case we just jump to the line of the import
+                  logInfo $ "no global found for " ++ show file
+                  findImportPos r sourceGlobal sourceSymbol
+                Just global ->
+                  findPosition global file
+          Just global -> findPosition global file
   where
     findSymbolInDifferentGlobal :: Global -> Symbol -> ServerResult Symbol
     findSymbolInDifferentGlobal g s = 
            note Error "No matching symbol found" $ g.find s.name
+    findImportPos r sourceGlobal sourceSymbol = do
+           uri <- liftResult $ asServerResult (URI.fromGlobal r sourceGlobal)
+           pure (uri, sourceSymbol)
+    findPosition global file = do
+           sym <- liftResult $ findSymbolInDifferentGlobal global sourceSymbol
+           logInfo $ "loaded as global: " ++ show file
+           pure (file, sym)

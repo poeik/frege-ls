@@ -37,12 +37,3 @@ updateGlobals :: Monad m => HashMap URI Global -> LspState m -> LspState m
 updateGlobals newGlobals st = st.{ globals = updated }
   where
     updated = union newGlobals st.globals
-  
-globals :: Monad m => LspState m -> HashMap URI Global
-globals st = st.globals
-
-projectGlobal :: LspState m -> Maybe Global
-projectGlobal st = st.projectGlobal
-
-rootPath :: Monad m => LspState m -> ServerResult URI
-rootPath st = st.rootPath

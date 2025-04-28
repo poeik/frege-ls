@@ -9,16 +9,17 @@ import ch.fhnw.lsp.compile.CompileExecutorLSP
 
 import Data.HashMap
 
-updateURIGlobals :: URI -> Global -> LspEnv IO ()
-updateURIGlobals openedUri projectGlobal = do
-  newGlobals     <- liftIO $ compileMakeLSP openedUri.getPath projectGlobal
-  r              <- getSub rootPath >>= liftResult
-  let kv          = map (\g -> (URI.fromGlobal r g, g)) newGlobals
-  let globalsMap  = fromList $ dropLefts kv
-  modify $ updateGlobals globalsMap
-  updatedGlobals <- getSub globals
-  logInfo $ "sources: " ++ (show . keys) updatedGlobals
-
+updateURIGlobals :: URI -> LspEnv IO ()
+updateURIGlobals openedUri = do
+    pglobal    <- access _.projectGlobal >>= hushMaybe
+    newGlobals <- liftIO $ compileMakeLSP openedUri.getPath pglobal
+    logInfo $ "amt new globals: " ++ ((show . length) newGlobals)
+    rootPath   <- access _.rootPath >>= liftResult
+    let kv         = map (\g -> (URI.fromGlobal rootPath g, g)) newGlobals
+    let globalsMap = fromList $ dropLefts kv
+    modify $ updateGlobals globalsMap
+    updatedGlobals <- access _.globals
+    logInfo $ "sources: " ++ (show . keys) updatedGlobals
   where
     dropLefts :: [((String | URI), Global)] -> [(URI, Global)]
     dropLefts xs = [ (uri, g) | (Right uri, g) <- xs ]

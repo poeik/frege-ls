@@ -10,23 +10,25 @@ import Data.HashMap
 import Data.List(find)
 
 import ch.fhnw.lsp.env.LspEnv
+import ch.fhnw.lsp.utils.Globals(updateURIGlobals)
 import ch.fhnw.lsp.env.LspState
 import ch.fhnw.lsp.messages.GeneralLspTypes
 import ch.fhnw.lsp.messages.textdocument.DefinitionTypes
 import ch.fhnw.lsp.utils.Utils
 
-processDefinitionMessage :: Monad m => DefinitionRequestParams -> LspEnv m Location
+processDefinitionMessage :: DefinitionRequestParams -> LspEnv IO Location
 processDefinitionMessage params = do
   let currentUri = params.textDocument.uri
   let cursorPos  = params.position
-  globalsMap    <- getSub globals
-  currentGlobal <- liftResult $ findGlobal currentUri globalsMap
-  cursorToken   <- liftResult $ findToken  cursorPos currentGlobal 
-  symbol        <- liftResult $ findSymbol cursorToken currentGlobal 
-  projectRoot   <- getSub rootPath
-  file          <- liftResult $ getFile projectRoot currentGlobal symbol globalsMap
-  range         <- liftResult $ posToRange symbol.pos cursorToken
-  pure Location { uri = file, range = range}
+  globalsMap    <- access _.globals
+  sourceGlobal  <- liftResult $ findGlobal currentUri globalsMap
+  cursorToken   <- liftResult $ findToken  cursorPos sourceGlobal 
+  logInfo $ "Token under cursor: " ++ show cursorToken
+  sourceSymbol  <- liftResult $ findSymbol cursorToken sourceGlobal 
+  projectRoot   <- access _.rootPath
+  (file, targetSymbol) <- getFile projectRoot sourceGlobal sourceSymbol globalsMap
+  range         <- liftResult $ posToRange targetSymbol.pos cursorToken
+  pure Location { uri = file, range = range }
 
 findGlobal :: URI -> HashMap URI Global -> ServerResult Global
 findGlobal uri globals = note Error "No global for given URI found" $ globals.lookup uri
@@ -75,18 +77,32 @@ posToRange pos token = do
     last  = pos.last
     len   = length token.value
 
-getFile :: ServerResult URI  -> Global -> Symbol -> HashMap URI Global -> ServerResult URI
-getFile root global symbol m = do
-    r <- root
-    case symbol.name of
-      Local _ _ -> asServerResult $ URI.fromGlobal r global
+getFile :: ServerResult URI -> Global -> Symbol -> HashMap URI Global -> LspEnv IO (URI, Symbol)
+getFile root sourceGlobal sourceSymbol m = do
+    r <- liftResult root
+    case sourceSymbol.name of
+      Local _ _ -> do 
+        logInfo "local definition"
+        uri <- liftResult $ asServerResult (URI.fromGlobal r sourceGlobal)
+        pure (uri, sourceSymbol)
       name -> do
         let pack = name.getpack
-        file <- asServerResult $ URI.fromPackage r global pack
-        if member file m then 
-          pure file 
-        else 
-          -- if the file is not loaded as global right now, 
-          -- it is either an external package or a definition part of the prelude 
-          -- in this case we just jump to the line of the import
-          asServerResult $ URI.fromGlobal r global
+        file <- liftResult $ asServerResult ( URI.fromPackage r sourceGlobal pack)
+        updateURIGlobals file
+
+        case lookup file m of
+          Nothing -> do
+            logInfo $ "not loaded as global: " ++ show file
+            -- if the file is not loaded as global right now, 
+            -- it is either an external package or a definition part of the prelude 
+            -- in this case we just jump to the line of the import
+            uri <- liftResult $ asServerResult (URI.fromGlobal r sourceGlobal)
+            pure (uri, sourceSymbol)
+          Just global  -> do 
+            sym <- liftResult $ findSymbolInDifferentGlobal global sourceSymbol
+            logInfo $ "already loaded a global: " ++ show file
+            pure (file, sym)
+  where
+    findSymbolInDifferentGlobal :: Global -> Symbol -> ServerResult Symbol
+    findSymbolInDifferentGlobal g s = 
+           note Error "No matching symbol found" $ g.find s.name

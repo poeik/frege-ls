@@ -8,4 +8,4 @@ import ch.fhnw.lsp.utils.Globals(updateURIGlobals)
 processDidOpenNotification :: DidOpenRequestParams -> LspEnv IO ()
 processDidOpenNotification params = do
   logInfo $ "opened: " ++ show params.textDocument.uri.getPath
-  updateURIGlobals params.textDocument.uri
+  fmap (const ()) $ updateURIGlobals params.textDocument.uri

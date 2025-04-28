@@ -5,9 +5,16 @@ import Control.monad.trans.MonadTrans as MT()
 import Control.monad.trans.MonadIO as M()
 import Control.monad.State
 
+import ch.fhnw.lsp.utils.Utils (note)
 import ch.fhnw.lsp.env.LspState
 
 type LspEnv m a = Monad m => EitherT ServerError (StateT (LspState m) m) a
+
+liftMaybe :: Monad m => String -> Maybe a -> LspEnv m a
+liftMaybe msg m = liftResult (asServerResult (note id msg m))
+
+hushMaybe :: Monad m => Maybe a -> LspEnv m a
+hushMaybe = liftMaybe ""
 
 liftState :: Monad m => State (LspState m) a -> LspEnv m a
 liftState st = MT.lift (promote st)
@@ -29,8 +36,8 @@ liftMonad = MT.lift . MT.lift
 get :: Monad m => LspEnv m (LspState m)
 get = MT.lift StateT.get
 
-getSub :: Monad m => (LspState m -> a) -> LspEnv m a
-getSub accessor = fmap accessor get
+access :: Monad m => (LspState m -> a) -> LspEnv m a
+access accessor = fmap accessor get
 
 put :: Monad m => LspState m -> LspEnv m ()
 put = MT.lift . StateT.put

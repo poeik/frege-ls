@@ -7,3 +7,10 @@ hush (Left _)  = Nothing
 note :: (e -> e') -> e ->  Maybe a -> Either e' a
 note _ _ (Just a) = Right a
 note f e Nothing  = Left $ f e
+
+debug :: Show c => String -> c -> (a -> b) -> (a -> b)
+debug lbl str f = 
+  if traceLn (lbl ++ ": " ++ show str) 
+    then f 
+    else undefined
+

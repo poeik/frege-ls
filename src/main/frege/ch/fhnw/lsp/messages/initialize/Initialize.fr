@@ -12,10 +12,10 @@ import Java.IO as JIO()
 processInitializeMessage :: InitializeRequestParams -> LspEnv IO InitializeResult
 processInitializeMessage (init@(InitializeRequestParams _ _ _ _)) = do
   logInfo $ logClientInfos init
-  let options = standardCompileOptions
-  setupCompileDir options
+  let opt = standardCompileOptions
+  setupCompileDir opt
   rootDir <- liftResult $ readRootDir init.workspaceFolders
-  global  <- liftMonad $ fromOptionsLSP options
+  global  <- liftMonad $ fromOptionsLSP opt
 
   modify (\cur -> cur.{ projectGlobal = Just global, rootPath = Right rootDir })
   pure $ InitializeResult capabilities serverInfos

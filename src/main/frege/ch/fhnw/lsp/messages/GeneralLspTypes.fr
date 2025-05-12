@@ -70,7 +70,7 @@ data URI = native java.net.URI where
   fromPackage :: URI -> Global -> Pack -> (String | URI)
   fromPackage r g p = (fromString . withFileScheme) $ path 
     where 
-      path = concat [r.getPath, "/", concat g.sourcePath, "/", replaceDotWithSlash (Global.unpack g p), ".fr"]
+      path = concat [r.getPath, "/", concat g.sourcePath, replaceDotWithSlash (Global.unpack g p), ".fr"]
       replaceDotWithSlash s = s.replace '.' '/'
   fromString      :: String -> (String | URI)
   fromString s    = ST.run

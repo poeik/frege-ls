@@ -1,4 +1,4 @@
-module ch.fhnw.lsp.messages.textdocument.DefinitionTypes where
+module ch.fhnw.lsp.messages.textdocument.definition.DefinitionTypes where
 
 import Data.JSON
 

@@ -2,8 +2,8 @@ module ch.fhnw.lsp.messages.Messages where
 
 import ch.fhnw.lsp.messages.initialize.Initialize
 import ch.fhnw.lsp.messages.initialize.InitializeTypes
-import ch.fhnw.lsp.messages.textdocument.Definition
-import ch.fhnw.lsp.messages.textdocument.DefinitionTypes
+import ch.fhnw.lsp.messages.textdocument.definition.Definition
+import ch.fhnw.lsp.messages.textdocument.definition.DefinitionTypes
 import ch.fhnw.lsp.messages.textdocument.didopen.DidOpen
 import ch.fhnw.lsp.messages.textdocument.didopen.DidOpenTypes
 import ch.fhnw.lsp.messages.textdocument.didsave.DidSave

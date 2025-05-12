@@ -4,6 +4,7 @@ import Compiler.types.Global(Global, Symbol)
 import Compiler.types.Positions as P()
 import Compiler.types.Symbols
 import Compiler.types.QNames
+import Compiler.types.NSNames
 import Compiler.enums.TokenID as T()
 import Compiler.types.Tokens(Token)
 import Data.HashMap
@@ -22,13 +23,36 @@ processDefinitionMessage params = do
   let cursorPos  = params.position
   globalsMap    <- access _.globals
   sourceGlobal  <- liftResult $ findGlobal currentUri globalsMap
+  logInfo $ "Imported Namespaces: "  ++ show sourceGlobal.sub.nsPos
   cursorToken   <- liftResult $ findToken  cursorPos sourceGlobal 
   logInfo $ "Token under cursor: " ++ show cursorToken
-  sourceSymbol  <- liftResult $ findSymbol cursorToken sourceGlobal 
-  projectRoot   <- access _.rootPath
-  (file, targetSymbol) <- getFile projectRoot sourceGlobal sourceSymbol globalsMap
-  range         <- liftResult $ posToRange targetSymbol.pos cursorToken
+  (file, pos)   <- findPosition cursorToken sourceGlobal
+  range         <- liftResult $ posToRange pos cursorToken
   pure Location { uri = file, range = range }
+
+findPosition :: Token -> Global -> LspEnv IO (URI, P.Position)
+findPosition cursorToken sourceGlobal = do 
+  case sourceGlobal.resolved cursorToken of
+    Nothing            -> liftResult $ report ("Could not find a position for the given token: " ++ show cursorToken)
+    Just (Left ())     -> resolveNamespace -- left means it is a namespace
+    Just (Right qname) -> resolveQName qname
+
+  where
+    resolveNamespace = do
+      projectRoot          <- access _.rootPath >>= liftResult
+      let moduleName = cursorToken.value
+      let x = sourceGlobal.sub.nsPos.lookup (NSX moduleName)
+      position <- liftResult $ case x of 
+        Nothing   -> report ("Could not find module " ++ moduleName)
+        Just pos  -> pure pos
+      file <- liftResult . asServerResult $ projectRoot.fromGlobal sourceGlobal
+      pure (file, position)
+    resolveQName qname = do
+       projectRoot          <- access _.rootPath
+       globals              <- access _.globals
+       sourceSymbol         <- liftResult $ note Error "No matching symbol for qname found" $ sourceGlobal.find qname
+       (file, targetSymbol) <- getFile projectRoot sourceGlobal sourceSymbol globals
+       pure (file, targetSymbol.pos)
 
 findGlobal :: URI -> HashMap URI Global -> ServerResult Global
 findGlobal uri globals = note Error "No global for given URI found" $ globals.lookup uri

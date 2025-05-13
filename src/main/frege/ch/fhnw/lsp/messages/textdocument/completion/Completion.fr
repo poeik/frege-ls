@@ -1,20 +1,61 @@
 module ch.fhnw.lsp.messages.textdocument.completion.Completion where
 
-import ch.fhnw.lsp.env.LspEnv(LspEnv)
+import Compiler.types.Tokens(Token)
+import Compiler.types.Global(Global)
+import Compiler.types.NSNames(NSX)
+import Compiler.types.SourceDefinitions
+import Data.HashMap(HashMap)
+
+import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, access, liftResult)
+import ch.fhnw.lsp.utils.Globals(findGlobal)
+import ch.fhnw.lsp.utils.Utils(note, tokenAt)
+import ch.fhnw.lsp.env.LspState(ServerResult, Error, report, asServerResult)
 import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionList, CompletionItem, CompletionRequestParams)
+import ch.fhnw.lsp.messages.GeneralLspTypes(Position, URI)
 
 processCompletionRequest :: CompletionRequestParams -> LspEnv IO CompletionList
-processCompletionRequest params = pure $
+processCompletionRequest params =
   case params.context >>= _.triggerCharacter of
-    Just "." -> CompletionList { isIncomplete = False, items = defaultItems }
-    _        -> CompletionList { isIncomplete = False, items = [] }
+    Just "." -> do
+      items <- completionList params
+      pure CompletionList { isIncomplete = False, items = map CompletionItem items }
+    _        -> pure $ CompletionList { isIncomplete = False, items = [] }
 
-   where 
-     defaultItems =
-       [ 
-         CompletionItem { label = "helloWorld" }
-       , CompletionItem { label = "byeWorld" }
-       , CompletionItem { label = "myFunction" }
-       , CompletionItem { label = "func" }
-       ]
+completionList :: CompletionRequestParams -> LspEnv IO [String]
+completionList params = do
+  logInfo $ "received params" ++ show params
+  globals     <- access _.globals
+  projectRoot <- access _.rootPath >>= liftResult
+  (token, sourceGlobal)   <- findToken params.position params.textDocument.uri globals
+  g <- findGlobalForModule token.value sourceGlobal
+  let maybeDefs = map funbinding g.sub.sourcedefs
+  let defs      = catMaybes maybeDefs
+  let names     = map _.value defs
+  pure names
 
+-- TODO: combine this function with code in Definition.fr
+findGlobalForModule :: String -> Global -> LspEnv IO Global
+findGlobalForModule moduleName sourceGlobal = do
+  let mod = NSX moduleName
+  globals     <- access _.globals
+  projectRoot <- access _.rootPath >>= liftResult
+  position <- liftResult $ case sourceGlobal.sub.nsPos.lookup mod of 
+    Nothing   -> report ("Could not find module " ++ show mod)
+    Just pos  -> pure pos
+  pack <- liftResult $ case sourceGlobal.namespaces.lookup mod of 
+    Nothing  -> report ("Could not find module " ++ show mod)
+    Just ps  -> pure ps
+  uri  <- liftResult . asServerResult $ projectRoot.fromPackage sourceGlobal pack
+  -- TODO: load global if it is not found
+  g    <- liftResult $ findGlobal uri globals
+  pure g
+
+
+findToken :: Position -> URI -> HashMap URI Global -> LspEnv IO (Token, Global)
+findToken pos uri globals = do
+  global <- liftResult $ findGlobal uri globals
+  logInfo $ show global.sub.toks.toList
+  token <- liftResult $ tokenAt 
+    pos.{character <- (\c -> c - 1)} -- we want the token before the `.`
+    global
+  pure (token, global)

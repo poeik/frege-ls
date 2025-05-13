@@ -1,5 +1,12 @@
 module ch.fhnw.lsp.utils.Utils where
 
+import Compiler.types.Global(Global, Symbol)
+import Compiler.types.Tokens(Token)
+import Data.List(find)
+
+import ch.fhnw.lsp.env.LspState(ServerResult, Error)
+import ch.fhnw.lsp.messages.GeneralLspTypes(Position)
+
 hush :: Either e a -> Maybe a
 hush (Right a) = Just a
 hush (Left _)  = Nothing
@@ -14,3 +21,13 @@ debug lbl str f =
     then f 
     else undefined
 
+tokenAt:: Position -> Global -> ServerResult Token
+tokenAt position global =
+  let tokens = global.sub.toks.toList in
+  note Error ("No token found at position" ++ show position) $ find findTokenAt tokens 
+  where
+    findTokenAt :: Token -> Bool
+    findTokenAt t =
+      position.line + 1 == t.line -- LSP has 0 based line numbers
+      && position.character < (t.col + (length t.value)) 
+      && position.character >= t.col

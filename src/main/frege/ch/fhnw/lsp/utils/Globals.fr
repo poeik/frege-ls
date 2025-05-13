@@ -3,6 +3,7 @@ module ch.fhnw.lsp.utils.Globals where
 import Compiler.types.Global(Global)
 
 import ch.fhnw.lsp.messages.GeneralLspTypes(URI)
+import ch.fhnw.lsp.utils.Utils(note)
 import ch.fhnw.lsp.env.LspEnv
 import ch.fhnw.lsp.env.LspState
 import ch.fhnw.lsp.compile.CompileExecutorLSP
@@ -24,3 +25,7 @@ updateURIGlobals openedUri = do
   where
     dropLefts :: [((String | URI), Global)] -> [(URI, Global)]
     dropLefts xs = [ (uri, g) | (Right uri, g) <- xs ]
+
+
+findGlobal :: URI -> HashMap URI Global -> ServerResult Global
+findGlobal uri globals = note Error "No global for given URI found" $ globals.lookup uri

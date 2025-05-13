@@ -8,19 +8,18 @@ import Compiler.types.NSNames
 import Compiler.enums.TokenID as T()
 import Compiler.types.Tokens(Token)
 import Data.HashMap
-import Data.List(find)
 
 import ch.fhnw.lsp.env.LspEnv
-import ch.fhnw.lsp.utils.Globals(updateURIGlobals)
+import ch.fhnw.lsp.utils.Globals(updateURIGlobals, findGlobal)
 import ch.fhnw.lsp.env.LspState
 import ch.fhnw.lsp.messages.GeneralLspTypes
 import ch.fhnw.lsp.messages.textdocument.definition.DefinitionTypes
-import ch.fhnw.lsp.utils.Utils
+import ch.fhnw.lsp.utils.Utils(tokenAt, note, hush)
 
 processDefinitionMessage :: DefinitionRequestParams -> LspEnv IO Location
 processDefinitionMessage params = do
   let currentUri = params.textDocument.uri
-  let cursorPos  = params.position
+  let cursorPos  = params.position.{character <- (\c -> c + 1)}
   globalsMap    <- access _.globals
   sourceGlobal  <- liftResult $ findGlobal currentUri globalsMap
   logInfo $ "Imported Namespaces: "  ++ show sourceGlobal.sub.nsPos
@@ -39,12 +38,17 @@ findPosition cursorToken sourceGlobal = do
 
   where
     resolveNamespace = do
-      projectRoot          <- access _.rootPath >>= liftResult
-      let moduleName = cursorToken.value
-      let x = sourceGlobal.sub.nsPos.lookup (NSX moduleName)
-      position <- liftResult $ case x of 
-        Nothing   -> report ("Could not find module " ++ moduleName)
+      projectRoot      <- access _.rootPath >>= liftResult
+      globals          <- access _.globals
+      let moduleName = NSX cursorToken.value
+      position <- liftResult $ case sourceGlobal.sub.nsPos.lookup moduleName of 
+        Nothing   -> report ("Could not find module " ++ show moduleName)
         Just pos  -> pure pos
+      pack <- liftResult $ case sourceGlobal.namespaces.lookup moduleName of 
+        Nothing  -> report ("Could not find module " ++ show moduleName)
+        Just ps  -> pure ps
+      uri  <- liftResult . asServerResult $ projectRoot.fromPackage sourceGlobal pack
+      g   <- liftResult $ findGlobal uri globals
       file <- liftResult . asServerResult $ projectRoot.fromGlobal sourceGlobal
       pure (file, position)
     resolveQName qname = do
@@ -54,12 +58,9 @@ findPosition cursorToken sourceGlobal = do
        (file, targetSymbol) <- getFile projectRoot sourceGlobal sourceSymbol globals
        pure (file, targetSymbol.pos)
 
-findGlobal :: URI -> HashMap URI Global -> ServerResult Global
-findGlobal uri globals = note Error "No global for given URI found" $ globals.lookup uri
-
 findToken :: Position -> Global -> ServerResult Token
 findToken cursorPos global = do 
-    token  <- tokenUnderCursor cursorPos global
+    token  <- tokenAt cursorPos global
     case token.tokid of 
       id | id == T.VARID || id == T.CONID || id == T.QUALIFIER || id == T.SOMEOP -> pure token
       t -> report $ "Token under cursor (" ++ show t ++ ") is not valid."
@@ -71,20 +72,6 @@ findSymbol token global =  findSymbol'
        qname  <- note Error "No matching qname found"  $ global.resolved token >>= hush
        sym    <- note Error "No matching symbol found" $ global.find qname
        pure sym
-
-tokenUnderCursor:: Position -> Global -> ServerResult Token
-tokenUnderCursor cursorPos global =
-  let
-    tokens = global.sub.toks.toList
-  in
-  note Error "No token present under cursor" $ find isCursorOverToken tokens 
-  where
-    isCursorOverToken :: Token -> Bool
-    isCursorOverToken t =
-      -- token is 1 based, cursor 0
-      cursorPos.line == (t.line - 1)
-      && cursorPos.character < (t.col - 1 + (length t.value)) 
-      && cursorPos.character >= t.col - 1
 
 posToRange :: P.Position -> Token -> ServerResult Range
 posToRange pos token = do

@@ -86,7 +86,7 @@ instance ToJSON Response where
     Struct [ 
               ("jsonrpc", toJSON "2.0"),
               ("id",      toJSON id),
-              ("result",  toJSON completionList)
+              ("result", toJSON completionList)
            ]
 
 data Method = Method String

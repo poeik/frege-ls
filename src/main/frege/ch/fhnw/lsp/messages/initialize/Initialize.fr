@@ -60,4 +60,8 @@ capabilities = ServerCapabilities {
   , change = Full 
   , save = SaveOptions { includeText = True }
   }
+, completionProvider = CompletionOptions {
+    triggerCharacters = ["."]
+  , resolveProvider   = False
+  }
 }

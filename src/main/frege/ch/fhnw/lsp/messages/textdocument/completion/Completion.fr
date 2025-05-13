@@ -1,0 +1,20 @@
+module ch.fhnw.lsp.messages.textdocument.completion.Completion where
+
+import ch.fhnw.lsp.env.LspEnv(LspEnv)
+import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionList, CompletionItem, CompletionRequestParams)
+
+processCompletionRequest :: CompletionRequestParams -> LspEnv IO CompletionList
+processCompletionRequest params = pure $
+  case params.context >>= _.triggerCharacter of
+    Just "." -> CompletionList { isIncomplete = False, items = defaultItems }
+    _        -> CompletionList { isIncomplete = False, items = [] }
+
+   where 
+     defaultItems =
+       [ 
+         CompletionItem { label = "helloWorld" }
+       , CompletionItem { label = "byeWorld" }
+       , CompletionItem { label = "myFunction" }
+       , CompletionItem { label = "func" }
+       ]
+

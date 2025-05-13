@@ -8,6 +8,8 @@ import ch.fhnw.lsp.messages.textdocument.didopen.DidOpen
 import ch.fhnw.lsp.messages.textdocument.didopen.DidOpenTypes
 import ch.fhnw.lsp.messages.textdocument.didsave.DidSave
 import ch.fhnw.lsp.messages.textdocument.didsave.DidSaveTypes
+import ch.fhnw.lsp.messages.textdocument.completion.Completion
+import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes
 import ch.fhnw.lsp.messages.GeneralLspTypes
 
 import ch.fhnw.lsp.env.LspEnv
@@ -18,14 +20,16 @@ processMessage :: Request -> LspEnv IO Response
 processMessage (InitializeRequest id params) = fmap (InitializeResponse id) (processInitializeMessage params)
 processMessage InitializedRequest            = pure EmptyResponse
 processMessage (DefinitionRequest id params) = fmap (DefinitionResponse id) (processDefinitionMessage params)
-processMessage (DidOpenNotification params)  = fmap (const EmptyResponse) (processDidOpenNotification params)
-processMessage (DidSaveNotification params)  = fmap (const EmptyResponse) (processDidSaveNotification params)
+processMessage (DidOpenNotification params)  = fmap (const EmptyResponse)   (processDidOpenNotification params)
+processMessage (DidSaveNotification params)  = fmap (const EmptyResponse)   (processDidSaveNotification params)
+processMessage (CompletionRequest id params) = fmap (CompletionResponse id) (processCompletionRequest params)
 
 -- All supported requests
-data Request = InitializeRequest { id :: Int, initParams :: InitializeRequestParams } 
-             | DefinitionRequest { id :: Int, defParams :: DefinitionRequestParams }
-             | DidOpenNotification { didOpenParams :: DidOpenRequestParams }
-             | DidSaveNotification { didSaveParams :: DidSaveNotificationParams }
+data Request = InitializeRequest      { id :: Int, initParams       :: InitializeRequestParams } 
+             | DefinitionRequest      { id :: Int, defParams        :: DefinitionRequestParams }
+             | CompletionRequest      { id :: Int, completionParams :: CompletionRequestParams }
+             | DidOpenNotification    {            didOpenParams    :: DidOpenRequestParams }
+             | DidSaveNotification    {            didSaveParams    :: DidSaveNotificationParams }
              | InitializedRequest 
 
 instance FromJSON Request where
@@ -48,6 +52,10 @@ instance FromJSON Request where
       "textDocument/didSave" -> do
         didSaveParams <- field "params" as
         pure DidSaveNotification { didSaveParams }
+      "textDocument/completion" -> do
+        id               <- field "id" as
+        completionParams <- field "params" as
+        pure CompletionRequest { id, completionParams }
       unsupported -> do
         fail $ "Unsupported message with method \"" ++ unsupported ++ "\" received"
   fromJSON garbage = fail ("couldn't decode message from: " ++ show garbage)
@@ -55,6 +63,7 @@ instance FromJSON Request where
 -- all supported responses
 data Response = InitializeResponse Int InitializeResult
               | DefinitionResponse Int Location 
+              | CompletionResponse Int CompletionList
               | EmptyResponse
 
 derive Show Response
@@ -72,6 +81,12 @@ instance ToJSON Response where
               ("jsonrpc", toJSON "2.0"),
               ("id"     , toJSON requestId),
               ("result" , toJSON location)
+           ]
+  toJSON (CompletionResponse id completionList) = 
+    Struct [ 
+              ("jsonrpc", toJSON "2.0"),
+              ("id",      toJSON id),
+              ("result",  toJSON completionList)
            ]
 
 data Method = Method String

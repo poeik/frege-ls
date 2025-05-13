@@ -40,7 +40,9 @@ derive Show ServerInfo
 data ServerCapabilities = ServerCapabilities { 
   definitionProvider :: Bool
 , textDocumentSync   :: TextDocumentSyncOptions
+, completionProvider :: CompletionOptions
 }
+
 derive Show ServerCapabilities
 
 data TextDocumentSyncOptions = TextDocumentSyncOptions {
@@ -55,6 +57,12 @@ derive Show TextDocumentSyncKind
 
 data SaveOptions = SaveOptions { includeText :: Bool }
 derive Show SaveOptions
+
+data CompletionOptions = CompletionOptions {
+  triggerCharacters :: [String]
+, resolveProvider   :: Bool
+}
+derive Show CompletionOptions
 
 -------------  FromJSON instances ------------- 
 
@@ -114,10 +122,17 @@ instance ToJSON SaveOptions where
   toJSON (SaveOptions includeText) = 
     Struct [("includeText", toJSON includeText)]
 
+instance ToJSON CompletionOptions where
+  toJSON (CompletionOptions triggerCharacters resolveProvider) = 
+    Struct [
+      ("triggerCharacters", toJSON triggerCharacters)
+    , ("resolveProvider", toJSON resolveProvider)
+    ]
+
 instance ToJSON ServerCapabilities where
-  toJSON (ServerCapabilities definitionProvider textDocumentSync) = 
+  toJSON (ServerCapabilities definitionProvider textDocumentSync completionProvider) = 
     Struct [
       ("definitionProvider", toJSON definitionProvider)
     , ("textDocumentSync"  , toJSON textDocumentSync)
+    , ("completionProvider", toJSON completionProvider)
     ]
-

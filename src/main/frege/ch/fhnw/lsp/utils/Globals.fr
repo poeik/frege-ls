@@ -1,6 +1,7 @@
 module ch.fhnw.lsp.utils.Globals where
 
 import Compiler.types.Global(Global)
+import Compiler.types.NSNames(NSX)
 
 import ch.fhnw.lsp.messages.GeneralLspTypes(URI)
 import ch.fhnw.lsp.utils.Utils(note)
@@ -26,6 +27,32 @@ updateURIGlobals openedUri = do
     dropLefts :: [((String | URI), Global)] -> [(URI, Global)]
     dropLefts xs = [ (uri, g) | (Right uri, g) <- xs ]
 
-
 findGlobal :: URI -> HashMap URI Global -> ServerResult Global
 findGlobal uri globals = note Error "No global for given URI found" $ globals.lookup uri
+
+findOrLoadGlobal :: URI -> LspEnv IO (Maybe Global)
+findOrLoadGlobal uri = do
+  globals <- access _.globals
+  target <- either 
+    (const $ updateURIGlobals uri)
+    (pure . Just)
+    (findGlobal uri globals)
+  pure target
+
+findGlobalForModule :: String -> Global -> LspEnv IO (Maybe Global)
+findGlobalForModule moduleName sourceGlobal = do
+  uri  <- findFileUriForImportedModule moduleName sourceGlobal
+  g    <- findOrLoadGlobal uri
+  pure g
+
+
+findFileUriForImportedModule :: String -> Global -> LspEnv IO URI
+findFileUriForImportedModule moduleName sourceGlobal = do
+  let mod = NSX moduleName
+  globals     <- access _.globals
+  projectRoot <- access _.rootPath >>= liftResult
+  pack <- liftResult $ case sourceGlobal.namespaces.lookup mod of 
+    Nothing  -> report ("Could not find module " ++ show mod)
+    Just ps  -> pure ps
+  uri  <- liftResult . asServerResult $ projectRoot.fromPackage sourceGlobal pack
+  pure uri

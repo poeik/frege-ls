@@ -10,7 +10,7 @@ import Compiler.types.Tokens(Token)
 import Data.HashMap
 
 import ch.fhnw.lsp.env.LspEnv
-import ch.fhnw.lsp.utils.Globals(updateURIGlobals, findGlobal)
+import ch.fhnw.lsp.utils.Globals(updateURIGlobals, findGlobal, findGlobalForModule)
 import ch.fhnw.lsp.env.LspState
 import ch.fhnw.lsp.messages.GeneralLspTypes
 import ch.fhnw.lsp.messages.textdocument.definition.DefinitionTypes
@@ -44,11 +44,6 @@ findPosition cursorToken sourceGlobal = do
       position <- liftResult $ case sourceGlobal.sub.nsPos.lookup moduleName of 
         Nothing   -> report ("Could not find module " ++ show moduleName)
         Just pos  -> pure pos
-      pack <- liftResult $ case sourceGlobal.namespaces.lookup moduleName of 
-        Nothing  -> report ("Could not find module " ++ show moduleName)
-        Just ps  -> pure ps
-      uri  <- liftResult . asServerResult $ projectRoot.fromPackage sourceGlobal pack
-      g   <- liftResult $ findGlobal uri globals
       file <- liftResult . asServerResult $ projectRoot.fromGlobal sourceGlobal
       pure (file, position)
     resolveQName qname = do

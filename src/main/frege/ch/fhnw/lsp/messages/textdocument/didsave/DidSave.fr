@@ -1,7 +1,7 @@
 module ch.fhnw.lsp.messages.textdocument.didsave.DidSave where
 
 import ch.fhnw.lsp.messages.GeneralLspTypes(URI)
-import ch.fhnw.lsp.env.LspEnv
+import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo)
 import ch.fhnw.lsp.messages.textdocument.didsave.DidSaveTypes
 import ch.fhnw.lsp.utils.Globals(updateURIGlobals)
 

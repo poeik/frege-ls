@@ -1,28 +1,34 @@
 module ch.fhnw.lsp.messages.Messages where
 
-import ch.fhnw.lsp.messages.initialize.Initialize
-import ch.fhnw.lsp.messages.initialize.InitializeTypes
-import ch.fhnw.lsp.messages.textdocument.definition.Definition
-import ch.fhnw.lsp.messages.textdocument.definition.DefinitionTypes
-import ch.fhnw.lsp.messages.textdocument.didopen.DidOpen
-import ch.fhnw.lsp.messages.textdocument.didopen.DidOpenTypes
-import ch.fhnw.lsp.messages.textdocument.didsave.DidSave
-import ch.fhnw.lsp.messages.textdocument.didsave.DidSaveTypes
-import ch.fhnw.lsp.messages.textdocument.completion.Completion
-import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes
-import ch.fhnw.lsp.messages.GeneralLspTypes
+import ch.fhnw.lsp.messages.initialize.Initialize(processInitializeMessage)
+import ch.fhnw.lsp.messages.initialize.InitializeTypes(InitializeRequestParams, InitializeResult)
+import ch.fhnw.lsp.messages.textdocument.definition.Definition(processDefinitionMessage)
+import ch.fhnw.lsp.messages.textdocument.definition.DefinitionTypes(DefinitionRequestParams)
+import ch.fhnw.lsp.messages.textdocument.didopen.DidOpen(processDidOpenNotification)
+import ch.fhnw.lsp.messages.textdocument.didopen.DidOpenTypes(DidOpenRequestParams)
+import ch.fhnw.lsp.messages.textdocument.didsave.DidSave(processDidSaveNotification)
+import ch.fhnw.lsp.messages.textdocument.didsave.DidSaveTypes(DidSaveNotificationParams)
+import ch.fhnw.lsp.messages.textdocument.completion.Completion(processCompletionRequest)
+import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionRequestParams, CompletionList)
+import ch.fhnw.lsp.messages.textdocument.didchange.DidChangeTypes(DidChangeNotificationParams)
+import ch.fhnw.lsp.messages.textdocument.didchange.DidChange(processDidChangeNotification)
+import ch.fhnw.lsp.messages.GeneralLspTypes(Location)
 
 import ch.fhnw.lsp.env.LspEnv
 
 import Data.JSON
 
 processMessage :: Request -> LspEnv IO Response
-processMessage (InitializeRequest id params) = fmap (InitializeResponse id) (processInitializeMessage params)
-processMessage InitializedRequest            = pure EmptyResponse
-processMessage (DefinitionRequest id params) = fmap (DefinitionResponse id) (processDefinitionMessage params)
-processMessage (DidOpenNotification params)  = fmap (const EmptyResponse)   (processDidOpenNotification params)
-processMessage (DidSaveNotification params)  = fmap (const EmptyResponse)   (processDidSaveNotification params)
-processMessage (CompletionRequest id params) = fmap (CompletionResponse id) (processCompletionRequest params)
+processMessage (InitializeRequest id params)  = fmap (InitializeResponse id) (processInitializeMessage params)
+processMessage InitializedRequest             = pure EmptyResponse
+processMessage (DefinitionRequest id params)  = fmap (DefinitionResponse id) (processDefinitionMessage params)
+processMessage (DidOpenNotification params)   = fmap (const EmptyResponse)   (processDidOpenNotification params)
+processMessage (DidSaveNotification params)   = fmap (const EmptyResponse)   (processDidSaveNotification params)
+processMessage (CompletionRequest id params)  = fmap (CompletionResponse id) (processCompletionRequest params)
+processMessage (DidChangeNotification params) = fmap (const EmptyResponse)   (processDidChangeNotification params)
+
+debounce :: (a -> b) -> a -> Integer -> (() | b)
+debounce f a millis = Left ()
 
 -- All supported requests
 data Request = InitializeRequest      { id :: Int, initParams       :: InitializeRequestParams } 
@@ -30,6 +36,7 @@ data Request = InitializeRequest      { id :: Int, initParams       :: Initializ
              | CompletionRequest      { id :: Int, completionParams :: CompletionRequestParams }
              | DidOpenNotification    {            didOpenParams    :: DidOpenRequestParams }
              | DidSaveNotification    {            didSaveParams    :: DidSaveNotificationParams }
+             | DidChangeNotification  {            didChangeParams  :: DidChangeNotificationParams }
              | InitializedRequest 
 
 instance FromJSON Request where
@@ -56,6 +63,9 @@ instance FromJSON Request where
         id               <- field "id" as
         completionParams <- field "params" as
         pure CompletionRequest { id, completionParams }
+      "textDocument/didChange" -> do
+        didChangeParams <- field "params" as
+        pure DidChangeNotification { didChangeParams }
       unsupported -> do
         fail $ "Unsupported message with method \"" ++ unsupported ++ "\" received"
   fromJSON garbage = fail ("couldn't decode message from: " ++ show garbage)

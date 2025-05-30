@@ -39,5 +39,5 @@ instance FromJSON DidChangeNotificationParams where
     textDocument   <- field "textDocument" as
     contentChanges <- field "contentChanges" as
     pure DidChangeRequestParams { textDocument, contentChanges }
-  fromJSON garbage = fail ("couldn't decode DidChangeNotificationParams from: " ++ show garbage)
+  fromJSON garbage = fail ("couldn't decode DidChangeRequestParams from: " ++ show garbage)
 

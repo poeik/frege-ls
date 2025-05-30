@@ -2,6 +2,7 @@ module ch.fhnw.lsp.utils.Globals where
 
 import Compiler.types.Global(Global)
 import Compiler.types.NSNames(NSX)
+import Control.concurrent.STM(atomically, TVar)
 
 import ch.fhnw.lsp.messages.GeneralLspTypes(URI)
 import ch.fhnw.lsp.utils.Utils(note)
@@ -20,9 +21,9 @@ updateURIGlobals openedUri = do
     let kv         = map (\g -> (URI.fromGlobal rootPath g, g)) newGlobals
     let globalsMap = fromList $ dropLefts kv
     modify $ updateGlobals globalsMap
-    updatedGlobals <- access _.globals
-    logInfo $ "sources: " ++ (show . keys) updatedGlobals
-    liftEither $ Right (lookup openedUri updatedGlobals)
+    updated <- readGlobals
+    logInfo $ "sources: " ++ (show . keys) updated
+    liftEither $ Right (lookup openedUri updated)
   where
     dropLefts :: [((String | URI), Global)] -> [(URI, Global)]
     dropLefts xs = [ (uri, g) | (Right uri, g) <- xs ]
@@ -32,8 +33,8 @@ findGlobal uri globals = note Error "No global for given URI found" $ globals.lo
 
 findOrLoadGlobal :: URI -> LspEnv IO (Maybe Global)
 findOrLoadGlobal uri = do
-  globals <- access _.globals
-  target <- either 
+  globals <- readGlobals
+  target  <- either 
     (const $ updateURIGlobals uri)
     (pure . Just)
     (findGlobal uri globals)
@@ -45,7 +46,6 @@ findGlobalForModule moduleName sourceGlobal = do
   g    <- findOrLoadGlobal uri
   pure g
 
-
 findFileUriForImportedModule :: String -> Global -> LspEnv IO URI
 findFileUriForImportedModule moduleName sourceGlobal = do
   let mod = NSX moduleName
@@ -56,3 +56,9 @@ findFileUriForImportedModule moduleName sourceGlobal = do
     Just ps  -> pure ps
   uri  <- liftResult . asServerResult $ projectRoot.fromPackage sourceGlobal pack
   pure uri
+
+readGlobals :: LspEnv IO (HashMap URI Global)
+readGlobals = do
+  globals <- access _.globals
+  liftIO $ atomically
+    (globals >>= TVar.read)

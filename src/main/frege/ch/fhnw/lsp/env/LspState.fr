@@ -4,6 +4,7 @@ import ch.fhnw.lsp.messages.GeneralLspTypes (URI)
 import Data.HashMap
 import Compiler.types.Global (Global, Options, SubSt)
 import ch.fhnw.lsp.logger.Logger
+import Control.concurrent.STM
 
 type ServerResult a = (ServerError | a)
 data ServerError = Error String
@@ -11,14 +12,14 @@ data ServerError = Error String
 initialState :: Monad m => Logger m -> LspState m
 initialState logger = LspState {
   rootPath        = report "No root path provided"
-, globals         = empty
+, globals         = TVar.new empty
 , projectGlobal   = Nothing
 , logger          = logger
 }
 
 data LspState m = LspState { 
   rootPath      :: ServerResult URI 
-, globals       :: HashMap URI Global
+, globals       :: STM (TVar (HashMap URI Global))
 , projectGlobal :: Maybe Global
 , logger        :: Logger m
 }
@@ -31,9 +32,20 @@ asServerResult (Right a) = Right a
 asServerResult (Left e)  = report e
 
 setGlobals :: Monad m => HashMap URI Global -> LspState m -> LspState m
-setGlobals globals st = st.{ globals = globals }
+setGlobals newGlobals st = st.{
+   globals = do 
+     globals <- st.globals
+     globals.write newGlobals
+     pure globals
+}
 
 updateGlobals :: Monad m => HashMap URI Global -> LspState m -> LspState m
 updateGlobals newGlobals st = st.{ globals = updated }
   where
-    updated = union newGlobals st.globals
+    updated :: STM (TVar (HashMap URI Global))
+    updated = do 
+      globals <- st.globals
+      values  <- globals.read
+      let result = union newGlobals values
+      globals.write result
+      pure globals

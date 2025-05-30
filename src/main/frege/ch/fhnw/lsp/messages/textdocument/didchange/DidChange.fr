@@ -1,7 +1,7 @@
 module ch.fhnw.lsp.messages.textdocument.didchange.DidChange where
 
 import ch.fhnw.lsp.messages.textdocument.didchange.DidChangeTypes(DidChangeNotificationParams)
-import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, liftIO, access)
+import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, liftIO, access, get, runLspEnv)
 import ch.fhnw.lsp.utils.Globals(updateURIGlobals)
 import Java.Lang(Runnable)
 
@@ -13,8 +13,13 @@ data DebouncedAction = native ch.fhnw.lsp.messages.textdocument.didchange.Deboun
 processDidChangeNotification :: DidChangeNotificationParams -> LspEnv IO ()
 processDidChangeNotification params = do
   logger <- access _.logger
+  state  <- get
   debouncer <- liftIO $ DebouncedAction.new (500)
-  runnable  <- liftIO $ Runnable.new (logger "debounced hello world")
+  runnable  <- liftIO $ Runnable.new (
+    do 
+      runLspEnv state (updateURIGlobals params.textDocument.uri)
+      logger "updated globals"
+      pure ()
+    )
   liftIO $ debouncer.trigger runnable
-  fmap (const ()) $ updateURIGlobals params.textDocument.uri
-
+  pure ()

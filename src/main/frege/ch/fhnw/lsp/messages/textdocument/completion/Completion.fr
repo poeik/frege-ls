@@ -6,7 +6,7 @@ import Compiler.types.SourceDefinitions
 import Data.HashMap(HashMap)
 
 import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, access, liftResult)
-import ch.fhnw.lsp.utils.Globals(findGlobal,findGlobalForModule)
+import ch.fhnw.lsp.utils.Globals(findGlobal,findGlobalForModule, readGlobals)
 import ch.fhnw.lsp.utils.Utils(note, tokenAt)
 import ch.fhnw.lsp.env.LspState(ServerResult, Error, report, asServerResult)
 import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionList, CompletionItem, CompletionRequestParams)
@@ -23,7 +23,7 @@ processCompletionRequest params =
 completionList :: CompletionRequestParams -> LspEnv IO [String]
 completionList params = do
   logInfo $ "received params" ++ show params
-  globals     <- access _.globals
+  globals     <- readGlobals
   projectRoot <- access _.rootPath >>= liftResult
   (token, sourceGlobal)   <- findToken params.position params.textDocument.uri globals
   target <- findGlobalForModule token.value sourceGlobal

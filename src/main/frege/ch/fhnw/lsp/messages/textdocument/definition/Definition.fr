@@ -10,7 +10,7 @@ import Compiler.types.Tokens(Token)
 import Data.HashMap
 
 import ch.fhnw.lsp.env.LspEnv
-import ch.fhnw.lsp.utils.Globals(updateURIGlobals, findGlobal, findGlobalForModule)
+import ch.fhnw.lsp.utils.Globals(updateURIGlobals, findGlobal, findGlobalForModule, readGlobals)
 import ch.fhnw.lsp.env.LspState
 import ch.fhnw.lsp.messages.GeneralLspTypes
 import ch.fhnw.lsp.messages.textdocument.definition.DefinitionTypes
@@ -20,7 +20,7 @@ processDefinitionMessage :: DefinitionRequestParams -> LspEnv IO Location
 processDefinitionMessage params = do
   let currentUri = params.textDocument.uri
   let cursorPos  = params.position.{character <- (\c -> c + 1)}
-  globalsMap    <- access _.globals
+  globalsMap    <- readGlobals
   sourceGlobal  <- liftResult $ findGlobal currentUri globalsMap
   logInfo $ "Imported Namespaces: "  ++ show sourceGlobal.sub.nsPos
   cursorToken   <- liftResult $ findToken  cursorPos sourceGlobal 
@@ -48,7 +48,7 @@ findPosition cursorToken sourceGlobal = do
       pure (file, position)
     resolveQName qname = do
        projectRoot          <- access _.rootPath
-       globals              <- access _.globals
+       globals              <- readGlobals
        sourceSymbol         <- liftResult $ note Error "No matching symbol for qname found" $ sourceGlobal.find qname
        (file, targetSymbol) <- getFile projectRoot sourceGlobal sourceSymbol globals
        pure (file, targetSymbol.pos)

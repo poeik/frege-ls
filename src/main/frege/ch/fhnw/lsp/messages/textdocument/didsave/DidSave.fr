@@ -3,9 +3,9 @@ module ch.fhnw.lsp.messages.textdocument.didsave.DidSave where
 import ch.fhnw.lsp.messages.GeneralLspTypes(URI)
 import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo)
 import ch.fhnw.lsp.messages.textdocument.didsave.DidSaveTypes
-import ch.fhnw.lsp.utils.Globals(updateURIGlobals)
+import ch.fhnw.lsp.utils.Globals(compileFileAndUpdateURIGlobals)
 
 processDidSaveNotification :: DidSaveNotificationParams -> LspEnv IO ()
 processDidSaveNotification params = do
   logInfo $ "saved: " ++ show params.textDocument.uri.getPath
-  fmap (const ()) $ updateURIGlobals params.textDocument.uri
+  fmap (const ()) $ compileFileAndUpdateURIGlobals params.textDocument.uri

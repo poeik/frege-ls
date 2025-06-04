@@ -12,15 +12,27 @@ import ch.fhnw.lsp.compile.CompileExecutorLSP
 
 import Data.HashMap
 
-updateURIGlobals :: URI -> LspEnv IO (Maybe Global)
-updateURIGlobals openedUri = do
+compileFileAndUpdateURIGlobals :: URI -> LspEnv IO (Maybe Global)
+compileFileAndUpdateURIGlobals openedUri = do
     pglobal    <- access _.projectGlobal >>= hushMaybe
     newGlobals <- liftIO $ compileMakeLSP openedUri.getPath pglobal
+    updateURIGlobals newGlobals openedUri
+
+compileInMemoryAndUpdateURIGlobals :: URI -> String -> LspEnv IO (Maybe Global)
+compileInMemoryAndUpdateURIGlobals openedUri sourceCode = do
+    pglobal    <- access _.projectGlobal >>= hushMaybe
+    newGlobals <- liftIO $ compileMakeLSPInMemory openedUri.getPath sourceCode pglobal
+    updateURIGlobals newGlobals openedUri
+
+updateURIGlobals :: [Global] -> URI -> LspEnv IO (Maybe Global)
+updateURIGlobals newGlobals openedUri = do
     logInfo $ "amt new globals: " ++ ((show . length) newGlobals)
+    logInfo $ "new globals: " ++ concat (map (\g -> g.sub.thisPack.show) newGlobals)
     rootPath   <- access _.rootPath >>= liftResult
     let kv         = map (\g -> (URI.fromGlobal rootPath g, g)) newGlobals
     let globalsMap = fromList $ dropLefts kv
-    modify $ updateGlobals globalsMap
+    st <- get
+    liftIO $ updateGlobals globalsMap st
     updated <- readGlobals
     logInfo $ "sources: " ++ (show . keys) updated
     liftEither $ Right (lookup openedUri updated)
@@ -35,7 +47,7 @@ findOrLoadGlobal :: URI -> LspEnv IO (Maybe Global)
 findOrLoadGlobal uri = do
   globals <- readGlobals
   target  <- either 
-    (const $ updateURIGlobals uri)
+    (const $ compileFileAndUpdateURIGlobals uri)
     (pure . Just)
     (findGlobal uri globals)
   pure target
@@ -60,5 +72,4 @@ findFileUriForImportedModule moduleName sourceGlobal = do
 readGlobals :: LspEnv IO (HashMap URI Global)
 readGlobals = do
   globals <- access _.globals
-  liftIO $ atomically
-    (globals >>= TVar.read)
+  liftIO $ atomically globals.read

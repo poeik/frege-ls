@@ -3,9 +3,9 @@ module ch.fhnw.lsp.messages.textdocument.didopen.DidOpen where
 import ch.fhnw.lsp.messages.GeneralLspTypes(URI)
 import ch.fhnw.lsp.env.LspEnv
 import ch.fhnw.lsp.messages.textdocument.didopen.DidOpenTypes
-import ch.fhnw.lsp.utils.Globals(updateURIGlobals)
+import ch.fhnw.lsp.utils.Globals(compileFileAndUpdateURIGlobals)
 
 processDidOpenNotification :: DidOpenRequestParams -> LspEnv IO ()
 processDidOpenNotification params = do
   logInfo $ "opened: " ++ show params.textDocument.uri.getPath
-  fmap (const ()) $ updateURIGlobals params.textDocument.uri
+  fmap (const ()) $ compileFileAndUpdateURIGlobals params.textDocument.uri

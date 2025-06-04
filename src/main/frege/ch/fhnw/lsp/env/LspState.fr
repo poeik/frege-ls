@@ -9,17 +9,19 @@ import Control.concurrent.STM
 type ServerResult a = (ServerError | a)
 data ServerError = Error String
 
-initialState :: Monad m => Logger m -> LspState m
-initialState logger = LspState {
-  rootPath        = report "No root path provided"
-, globals         = TVar.new empty
-, projectGlobal   = Nothing
-, logger          = logger
-}
+initialState :: Monad m => Logger m -> IO (LspState m)
+initialState logger = do 
+  globals             <- atomically $ TVar.new empty
+  pure LspState {
+    rootPath        = report "No root path provided"
+  , globals         = globals
+  , projectGlobal   = Nothing
+  , logger          = logger
+  }
 
 data LspState m = LspState { 
   rootPath      :: ServerResult URI 
-, globals       :: STM (TVar (HashMap URI Global))
+, globals       :: TVar (HashMap URI Global)
 , projectGlobal :: Maybe Global
 , logger        :: Logger m
 }
@@ -31,21 +33,12 @@ asServerResult :: (String | a) -> ServerResult a
 asServerResult (Right a) = Right a
 asServerResult (Left e)  = report e
 
-setGlobals :: Monad m => HashMap URI Global -> LspState m -> LspState m
-setGlobals newGlobals st = st.{
-   globals = do 
-     globals <- st.globals
-     globals.write newGlobals
-     pure globals
-}
+setGlobals :: Monad m => HashMap URI Global -> LspState m -> IO ()
+setGlobals newGlobals st = do
+  atomically $ st.globals.write newGlobals
 
-updateGlobals :: Monad m => HashMap URI Global -> LspState m -> LspState m
-updateGlobals newGlobals st = st.{ globals = updated }
-  where
-    updated :: STM (TVar (HashMap URI Global))
-    updated = do 
-      globals <- st.globals
-      values  <- globals.read
-      let result = union newGlobals values
-      globals.write result
-      pure globals
+updateGlobals :: Monad m => HashMap URI Global -> LspState m -> IO ()
+updateGlobals newGlobals st = atomically $ do
+    values  <- st.globals.read
+    let result = union newGlobals values
+    st.globals.write result

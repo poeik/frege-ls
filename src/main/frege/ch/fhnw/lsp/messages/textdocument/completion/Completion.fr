@@ -2,7 +2,7 @@ module ch.fhnw.lsp.messages.textdocument.completion.Completion where
 
 import Compiler.types.Tokens(Token)
 import Compiler.types.Global(Global)
-import Compiler.types.SourceDefinitions
+import Compiler.types.SourceDefinitions(funbinding)
 import Data.HashMap(HashMap)
 
 import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, access, liftResult)
@@ -22,7 +22,6 @@ processCompletionRequest params =
 
 completionList :: CompletionRequestParams -> LspEnv IO [String]
 completionList params = do
-  logInfo $ "received params" ++ show params
   globals     <- readGlobals
   projectRoot <- access _.rootPath >>= liftResult
   (token, sourceGlobal)   <- findToken params.position params.textDocument.uri globals
@@ -34,11 +33,9 @@ completionList params = do
   let names     = map _.value defs
   pure names
 
-
 findToken :: Position -> URI -> HashMap URI Global -> LspEnv IO (Token, Global)
 findToken pos uri globals = do
   global <- liftResult $ findGlobal uri globals
-  logInfo $ show global.sub.toks.toList
   token <- liftResult $ tokenAt 
     pos.{character <- (\c -> c - 1)} -- we want the token before the `.`
     global

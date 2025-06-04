@@ -1,0 +1,42 @@
+module ch.fhnw.lsp.compile.inmemory.LexInMemory where
+
+import frege.Prelude hiding(<+>)
+import Compiler.grammar.Lexer(passCS, string2cs, slurp)
+
+-- import Data.TreeMap as TM(TreeMap, keys, contains, fromKeys, each, member)
+-- import Control.monad.State
+       
+-- import Lib.PP       except (group, layout, break)
+
+
+-- import Compiler.enums.TokenID
+
+-- import  Compiler.types.Positions hiding(is)
+import  Compiler.types.Tokens 
+import  Compiler.types.Global as G
+
+-- import  Compiler.common.Errors as E()
+
+
+pass :: String -> StIO [Token]
+pass source =
+    do
+        -- global <- getSTT
+        -- let opts   = global.options
+
+        -- fdata <- liftIO (slurp opts.source (maybe "utf-8" id opts.encoding) >>= return . Right
+        --                 `catch` cantread opts.source
+        --                 `catch` badencoding)
+        liftStG $ passCS (string2cs source)
+            -- case fdata of
+            --     Left exc -> do
+            --         E.error Position.null (msgdoc exc)
+            --         stio []
+            --     Right string -> passCS (string2cs string)
+  -- where
+    -- cantread :: String -> IOException -> IO (String|String)
+    -- cantread src exc = (return . Left) ("Can't read " ++ src ++ ": " ++ exc.getMessage)
+    -- badencoding ::  UnsupportedEncodingException -> IO (String|String)
+    -- badencoding exc = (return . Left) exc.getMessage
+
+

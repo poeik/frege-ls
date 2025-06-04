@@ -6,6 +6,7 @@ module ch.fhnw.lsp.compile.CompileMakeMode where
 import ch.fhnw.lsp.compile.CompileGlobal
 import ch.fhnw.lsp.compile.CompileOptions(standardCompileOptions)
 import ch.fhnw.lsp.compile.CompileNormalMode(passes)
+import ch.fhnw.lsp.compile.inmemory.LexInMemory as LI()
 
 import frege.Prelude hiding(<+>)
 import Lib.PP(msgdoc, text, <+>, <>)
@@ -39,7 +40,6 @@ lexPass = do
     -- changeSTT Global.{sub <- _.{toks = arrayFromList result}}
     return ("tokens", length result)
  
-
 parsePass = do
         g       <- getST
         result <- F.pass (filter Token.noComment g.sub.toks.toList)
@@ -326,12 +326,17 @@ resolveSP g path = do
            $ map (flip File.new path . File.new) g.options.sourcePath
     return (listToMaybe paths)
 
- 
 --- to do item
 data Todo = 
     --- We have a source file but do not know the package yet.
     ParseMe {
         source      :: String       --- path name to parse
+        force       :: Bool         --- recompiling of this package is always done
+    }
+    |
+    ParseMeInMemory{
+        sourceCode  :: String       --- in memory content of a file (might not be written to the disk yet)
+        source      :: String       --- filename to which the source code belongs to
         force       :: Bool         --- recompiling of this package is always done
     }
     | --- source has been parsed without syntax errors
@@ -420,6 +425,8 @@ instance Show Todo where
         NoRebuild{because}     → "no rebuild needed because " ++ because
         Waiting{for, todo}     → "waiting for `" ++ unmagicPack for.raw
         ParseMe{source, force} → "parse " ++ source ++ ", force recompilation: " ++ show force
+        ParseMeInMemory{source, sourceCode, force} 
+                               → "Inmemory parse " ++ source ++ ", force recompilation: " ++ show force
         Parsed{force}          → "parsed, force recompilation: " ++ show force
         Compiled{global}       → "compiled"
         JavaCompiled           → "compiled"
@@ -507,9 +514,10 @@ parseAll mvar tree = do
         let other = TM.fromList (filter (not . toparse . snd) (each tree))
         foldM parseResult other (each parsing)
     where
-        toparse ParseMe{} = true
-        toparse _         = false
-        parseResult tree _ = liftIO do
+        toparse ParseMe{}         = true
+        toparse ParseMeInMemory{} = true
+        toparse _                 = false
+        parseResult tree _        = liftIO do
             (p, todo) ← mvar.take
             case todo of
                 Parsed{global} -> return (tree.insert global.thisPack todo)
@@ -626,6 +634,8 @@ makeone mvar tree (p, todo) = do
                 async (checkUpdate pack reason)
             ParseMe{source, force} -> do 
                 async (parseMe source force)
+            ParseMeInMemory{source, sourceCode, force} -> do 
+                async (parseMeInMemory source sourceCode force)
             Parsed{global, force} -> do
                 async (return CompileAfterDeps{global, reason=Nothing, force})
             CompileMe{global, reason, because} → do
@@ -903,3 +913,28 @@ shouldShowErrorsIfDependencyIsNotOnClasspath = once $ morallyDubiousIOProperty d
         }
     globals       <- compileMake "./src/main/resources/FregeFXDep.fr" global
     pure $ all (\global -> global.errors > 0) globals
+
+
+-- Inmemory parsing
+{--
+    Lex & Parse given source code and return the resulting state.
+    The 'StIO' state is kept, except for the number of errors,
+    which gets updated from the parser state
+    -} 
+lexparseInMemory filePath sourceCode = do
+    g <- getSTT -- save current state
+    -- changeSTT _.{options <- _.{source = p}}
+    when (isOn g.options.flags VERBOSE) do
+        liftIO $ stderr.println ("parsing of inmemory content of " ++ filePath)
+    LI.pass sourceCode
+    liftStG parsePass
+    gc <- switchState g
+    mergeErrors gc
+    return gc
+
+parseMeInMemory filePath sourceCode force = do
+    gc <- lexparseInMemory filePath sourceCode
+    if gc.errors > 0 
+    then return Failed{because = "of syntax errors.", global = gc}
+    else return Parsed{global = gc, force = force}
+

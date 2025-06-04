@@ -10,7 +10,7 @@ import Compiler.types.Tokens(Token)
 import Data.HashMap
 
 import ch.fhnw.lsp.env.LspEnv
-import ch.fhnw.lsp.utils.Globals(updateURIGlobals, findGlobal, findGlobalForModule, readGlobals)
+import ch.fhnw.lsp.utils.Globals(compileFileAndUpdateURIGlobals, findGlobal, findGlobalForModule, readGlobals)
 import ch.fhnw.lsp.env.LspState
 import ch.fhnw.lsp.messages.GeneralLspTypes
 import ch.fhnw.lsp.messages.textdocument.definition.DefinitionTypes
@@ -97,7 +97,7 @@ getFile root sourceGlobal sourceSymbol m = do
 
         case lookup file m of
           Nothing -> do
-              maybeGlobal <- updateURIGlobals file
+              maybeGlobal <- compileFileAndUpdateURIGlobals file
               case maybeGlobal of 
                 Nothing -> do
                   -- if the file is not loaded as global right now, 

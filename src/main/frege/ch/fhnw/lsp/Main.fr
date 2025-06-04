@@ -20,7 +20,7 @@ main (filePath : _) = do
 startLsp :: Logger IO -> IO ()
 startLsp log = do
   log "Started Frege LSP"
-  let st = initialState log
+  st <- initialState log
   forever (mainLoop st)
       `catch` eof log
       `finally` log "Shutting down Frege LSP"

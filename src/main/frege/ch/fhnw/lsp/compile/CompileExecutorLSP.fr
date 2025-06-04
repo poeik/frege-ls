@@ -3,6 +3,7 @@
 -}
 module ch.fhnw.lsp.compile.CompileExecutorLSP where
 
+import ch.fhnw.lsp.compile.inmemory.CompileInMemory(compileMakeInMemory)
 import ch.fhnw.lsp.compile.CompileGlobal(standardCompileGlobal, fromOptions)
 import ch.fhnw.lsp.compile.CompileMakeMode(compileMake)
 import ch.fhnw.lsp.compile.CompileOptions(
@@ -13,6 +14,9 @@ import Compiler.types.Global(Global, Options)
 
 compileMakeLSP :: String -> Global -> IO [Global]
 compileMakeLSP fileUri global = compileMake fileUri global
+
+compileMakeLSPInMemory :: String -> String -> Global -> IO [Global]
+compileMakeLSPInMemory fileUri sourceCode global = compileMakeInMemory fileUri sourceCode global
 
 standardCompileGlobalLSP :: IO Global
 standardCompileGlobalLSP  = standardCompileGlobal

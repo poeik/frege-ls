@@ -68,7 +68,9 @@ data URI = native java.net.URI where
   fromGlobal   :: URI -> Global -> (String | URI)
   fromGlobal r g = fromPackage r g g.sub.thisPack
   fromPackage :: URI -> Global -> Pack -> (String | URI)
-  fromPackage r g p = (fromString . withFileScheme) $ path 
+  fromPackage r g p 
+    | p.raw == "" -> Left "Cannot create uri from empty package"
+    | otherwise   -> (fromString . withFileScheme) $ path 
     where 
       path = concat [r.getPath, "/", concat g.sourcePath, replaceDotWithSlash (Global.unpack g p), ".fr"]
       replaceDotWithSlash s = s.replace '.' '/'

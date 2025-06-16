@@ -10,11 +10,12 @@ import Control.monad.State(evalStateT)
 compileFileMakeInMemory :: String -> String -> StIO [Global]
 compileFileMakeInMemory filepath sourceCode = do
     changeSTT _.{options <- _.{source = filepath}}
-    todos        = TreeMap.insert empty (Pack.new filepath) ParseMeInMemory{source=filepath, sourceCode=sourceCode, force = True}
+    source      = ParseMe { source = Content { path=filepath, content=sourceCode }, force = True }
+    todos       = TreeMap.insert empty (Pack.new filepath) source
     mvar        <- liftIO C.MVar.newEmpty
     allTodos    <- parseAll mvar todos 
     doneTodos   <- make mvar allTodos
-    neededTodos  = ignoreFailedTodosWithoutSource doneTodos
+    neededTodos = ignoreFailedTodosWithoutSource doneTodos
     pure $ map (\t -> t.global) (values neededTodos)
 
 compileMakeInMemory :: String -> String -> Global -> IO [Global]

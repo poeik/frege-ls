@@ -67,12 +67,15 @@ parsePass = do
     The 'StIO' state is kept, except for the number of errors,
     which gets updated from the parser state
     -} 
-lexparse p = do
+lexparse :: Source -> StIO Global
+lexparse source = do
     g <- getSTT -- save current state
-    changeSTT _.{options <- _.{source = p}}
+    changeSTT _.{options <- _.{source = source.path}}
     when (isOn g.options.flags VERBOSE) do
-        liftIO $ stderr.println ("parsing " ++ p)
-    L.pass
+        liftIO $ stderr.println ("parsing " ++ source.path)
+    case source of
+      File _ -> L.pass
+      Content{ path, content } -> LI.pass content
     liftStG parsePass
     gc <- switchState g
     mergeErrors gc
@@ -326,17 +329,25 @@ resolveSP g path = do
            $ map (flip File.new path . File.new) g.options.sourcePath
     return (listToMaybe paths)
 
+data Source = 
+    File { 
+      path    :: String  --- the name of the file to parse
+    } 
+    | 
+    Content { 
+      path    :: String --- file path to which the source code belongs to
+      content :: String --- in memory content of a file (might not be written to the disk yet)
+    }
+
+instance Show Source where
+  show File{path}             = path
+  show Content{path, content} = "an inmemory representation of " ++ path
+
 --- to do item
 data Todo = 
     --- We have a source file but do not know the package yet.
     ParseMe {
-        source      :: String       --- path name to parse
-        force       :: Bool         --- recompiling of this package is always done
-    }
-    |
-    ParseMeInMemory{
-        sourceCode  :: String       --- in memory content of a file (might not be written to the disk yet)
-        source      :: String       --- filename to which the source code belongs to
+        source      :: Source       --- the source to parse
         force       :: Bool         --- recompiling of this package is always done
     }
     | --- source has been parsed without syntax errors
@@ -424,9 +435,7 @@ instance Show Todo where
         Failed{because}        -> "build failed because " ++ because
         NoRebuild{because}     -> "no rebuild needed because " ++ because
         Waiting{for, todo}     -> "waiting for `" ++ unmagicPack for.raw
-        ParseMe{source, force} -> "parse " ++ source ++ ", force recompilation: " ++ show force
-        ParseMeInMemory{source, sourceCode, force} 
-                               -> "Inmemory parse " ++ source ++ ", force recompilation: " ++ show force
+        ParseMe{source, force} -> "parse " ++ show source ++ ", force recompilation: " ++ show force
         Parsed{force}          -> "parsed, force recompilation: " ++ show force
         Compiled{global}       -> "compiled"
         JavaCompiled           -> "compiled"
@@ -459,7 +468,7 @@ createTodo xs = fold todoItem empty xs
         todoItem tree (Left (p, '\.java$')) 
                                     = TreeMap.insert tree p JavacMe{pack=p, reason=Nothing}
         todoItem tree (Left (p, _)) = TreeMap.insert tree p CheckUpdate{pack=p, reason=Nothing}
-        todoItem tree (Right s)     = TreeMap.insert tree (Pack.new s) ParseMe{source=s, force = False}
+        todoItem tree (Right s)     = TreeMap.insert tree (Pack.new s) ParseMe{source=File s, force = False}
 
 
 --- Predicate to tell if the argument represents a running state
@@ -515,7 +524,6 @@ parseAll mvar tree = do
         foldM parseResult other (each parsing)
     where
         toparse ParseMe{}         = true
-        toparse ParseMeInMemory{} = true
         toparse _                 = false
         parseResult tree _        = liftIO do
             (p, todo) <- mvar.take
@@ -634,8 +642,8 @@ makeone mvar tree (p, todo) = do
                 async (checkUpdate pack reason)
             ParseMe{source, force} -> do 
                 async (parseMe source force)
-            ParseMeInMemory{source, sourceCode, force} -> do 
-                async (parseMeInMemory source sourceCode force)
+            -- ParseMeInMemory{source, sourceCode, force} -> do 
+            --     async (parseMeInMemory source sourceCode force)
             Parsed{global, force} -> do
                 async (return CompileAfterDeps{global, reason=Nothing, force})
             CompileMe{global, reason, because} -> do
@@ -815,7 +823,7 @@ checkUpdate pack reason = do
                                 compiletime = fp.time 
                             }
         Just path  -> do
-            gc <- lexparse path
+            gc <- lexparse (File path)
             if gc.errors > 0 then return Failed{because = "of syntax errors.", global = gc}
             else if pack == gc.thisPack 
                 then return CompileAfterDeps{global=gc, reason, force = False}
@@ -825,8 +833,9 @@ checkUpdate pack reason = do
                                 ++ "`",
                                 global = gc}
 
-parseMe path force = do
-    gc <- lexparse path
+parseMe :: Source -> Bool -> StIO Todo
+parseMe source force = do
+    gc <- lexparse source
     if gc.errors > 0 
     then return Failed{because = "of syntax errors.", global = gc}
     else return Parsed{global = gc, force = force}
@@ -872,7 +881,7 @@ compileMe tree g reason = do
 compileFileMake :: String -> StIO [Global]
 compileFileMake filepath = do
     changeSTT _.{options <- _.{source = filepath}}
-    todos        = TreeMap.insert empty (Pack.new filepath) ParseMe{source=filepath, force = True}
+    todos        = TreeMap.insert empty (Pack.new filepath) ParseMe{source=File filepath, force = True}
     mvar        <- liftIO C.MVar.newEmpty
     allTodos    <- parseAll mvar todos 
     doneTodos   <- make mvar allTodos
@@ -913,28 +922,3 @@ shouldShowErrorsIfDependencyIsNotOnClasspath = once $ morallyDubiousIOProperty d
         }
     globals       <- compileMake "./src/main/resources/FregeFXDep.fr" global
     pure $ all (\global -> global.errors > 0) globals
-
-
--- Inmemory parsing
-{--
-    Lex & Parse given source code and return the resulting state.
-    The 'StIO' state is kept, except for the number of errors,
-    which gets updated from the parser state
-    -} 
-lexparseInMemory filePath sourceCode = do
-    g <- getSTT -- save current state
-    -- changeSTT _.{options <- _.{source = p}}
-    when (isOn g.options.flags VERBOSE) do
-        liftIO $ stderr.println ("parsing of inmemory content of " ++ filePath)
-    LI.pass sourceCode
-    liftStG parsePass
-    gc <- switchState g
-    mergeErrors gc
-    return gc
-
-parseMeInMemory filePath sourceCode force = do
-    gc <- lexparseInMemory filePath sourceCode
-    if gc.errors > 0 
-    then return Failed{because = "of syntax errors.", global = gc}
-    else return Parsed{global = gc, force = force}
-

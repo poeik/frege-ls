@@ -10,6 +10,7 @@ import ch.fhnw.lsp.utils.Utils(note)
 import ch.fhnw.lsp.env.LspEnv
 import ch.fhnw.lsp.env.LspState
 import ch.fhnw.lsp.compile.CompileExecutorLSP
+import ch.fhnw.lsp.utils.Utils(joinedBy)
 
 import Data.HashMap
 
@@ -38,15 +39,14 @@ compileInMemoryAndUpdateURIGlobals openedUri sourceCode = do
 
 updateURIGlobals :: [Global] -> URI -> LspEnv IO (Maybe Global)
 updateURIGlobals newGlobals openedUri = do
-    logInfo $ "amt new globals: " ++ ((show . length) newGlobals)
-    logInfo $ "new globals: " ++ concat (map (\g -> g.sub.thisPack.show) newGlobals)
+    logInfo $ "Adding " ++ show newGlobals.length ++ " globals: " ++ ((map (\g -> g.sub.thisPack.raw) newGlobals)) `joinedBy` ", "
     rootPath   <- access _.rootPath >>= liftResult
     let kv         = map (\g -> (URI.fromGlobal rootPath g, g)) newGlobals
     let globalsMap = fromList $ dropLefts kv
     st <- get
     liftIO $ updateGlobals globalsMap st
     updated <- readGlobals
-    logInfo $ "sources: " ++ (show . keys) updated
+    logInfo $ "All loaded globals: " ++ (show . keys) updated
     liftEither $ Right (lookup openedUri updated)
   where
     dropLefts :: [((String | URI), Global)] -> [(URI, Global)]

@@ -22,10 +22,10 @@ processDefinitionMessage params = do
   let cursorPos  = params.position.{character <- (\c -> c + 1)}
   globalsMap    <- readGlobals
   sourceGlobal  <- liftResult $ findGlobal currentUri globalsMap
-  logInfo $ "Imported Namespaces: "  ++ show sourceGlobal.sub.nsPos
   cursorToken   <- liftResult $ findToken  cursorPos sourceGlobal 
   logInfo $ "Token under cursor: " ++ show cursorToken
   (file, pos)   <- findPosition cursorToken sourceGlobal
+  logInfo $ "Symbol in file: \"" ++ file.getPath ++ "\" at position \"" ++ show pos ++ "\"."
   range         <- liftResult $ posToRange pos cursorToken
   pure Location { uri = file, range = range }
 
@@ -61,7 +61,7 @@ findToken cursorPos global = do
       t -> report $ "Token under cursor (" ++ show t ++ ") is not valid."
 
 findSymbol :: Token -> Global -> ServerResult Symbol
-findSymbol token global =  findSymbol'
+findSymbol token global = findSymbol'
    where 
      findSymbol' = do
        qname  <- note Error "No matching qname found"  $ global.resolved token >>= hush
@@ -88,12 +88,12 @@ getFile root sourceGlobal sourceSymbol m = do
     r <- liftResult root
     case sourceSymbol.name of
       Local _ _ -> do 
-        logInfo "local definition"
+        logInfo "The requested symbol is a local definition"
         uri <- liftResult $ asServerResult (URI.fromGlobal r sourceGlobal)
         pure (uri, sourceSymbol)
       name -> do
         let pack = name.getpack
-        file <- liftResult $ asServerResult ( URI.fromPackage r sourceGlobal pack)
+        file <- liftResult $ asServerResult (URI.fromPackage r sourceGlobal pack)
 
         case lookup file m of
           Nothing -> do

@@ -3,6 +3,7 @@ module ch.fhnw.lsp.utils.Globals where
 import Compiler.types.Global(Global)
 import Compiler.types.NSNames(NSX)
 import Control.concurrent.STM(atomically, TVar)
+import Java.IO(File)
 
 import ch.fhnw.lsp.messages.GeneralLspTypes(URI)
 import ch.fhnw.lsp.utils.Utils(note)
@@ -14,9 +15,20 @@ import Data.HashMap
 
 compileFileAndUpdateURIGlobals :: URI -> LspEnv IO (Maybe Global)
 compileFileAndUpdateURIGlobals openedUri = do
-    pglobal    <- access _.projectGlobal >>= hushMaybe
-    newGlobals <- liftIO $ compileMakeLSP openedUri.getPath pglobal
-    updateURIGlobals newGlobals openedUri
+    exists <- fileExists openedUri
+    if exists then do
+      logInfo $ "Compiling: " ++ openedUri.getPath
+      pglobal    <- access _.projectGlobal >>= hushMaybe
+      newGlobals <- liftIO $ compileMakeLSP openedUri.getPath pglobal
+      updateURIGlobals newGlobals openedUri
+    else do
+      logInfo $ "File \"" ++ openedUri.getPath ++ "\" does not exist"
+      pure Nothing
+    where 
+      fileExists :: URI -> LspEnv IO Bool
+      fileExists u = liftIO file.exists 
+        where 
+          file = File.new u.getPath
 
 compileInMemoryAndUpdateURIGlobals :: URI -> String -> LspEnv IO (Maybe Global)
 compileInMemoryAndUpdateURIGlobals openedUri sourceCode = do

@@ -31,3 +31,7 @@ tokenAt position global =
       position.line + 1 == t.line -- LSP has 0 based line numbers
       && position.character < (t.col + (length t.value)) 
       && position.character >= t.col
+
+joinedBy :: [String] -> String -> String
+joinedBy [] _ = ""
+joinedBy (a:as) c = a ++ c ++ as `joinedBy` c

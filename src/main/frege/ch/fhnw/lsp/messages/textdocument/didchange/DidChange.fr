@@ -22,9 +22,10 @@ processDidChangeNotification params = do
       let content = (head params.contentChanges).text
       let text = dropTrailingDots content
       _ <- runLspEnv state (compileInMemoryAndUpdateURIGlobals params.textDocument.uri text)
-      pure ()
+      setWaitForCompilation False state
     )
   liftIO $ debouncer.trigger runnable
+  liftIO $ setWaitForCompilation True state
   pure ()
 
 dropTrailingDots :: String -> String

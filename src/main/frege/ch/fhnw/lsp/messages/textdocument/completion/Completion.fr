@@ -1,11 +1,12 @@
 module ch.fhnw.lsp.messages.textdocument.completion.Completion where
 
+import Control.concurrent.STM(atomically, TVar)
 import Compiler.types.Tokens(Token)
 import Compiler.types.Global(Global)
 import Compiler.types.SourceDefinitions(funbinding)
 import Data.HashMap(HashMap)
 
-import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, access, liftResult)
+import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, access, liftResult, access, liftIO)
 import ch.fhnw.lsp.utils.Globals(findGlobal,findGlobalForModule, readGlobals)
 import ch.fhnw.lsp.utils.Utils(note, tokenAt)
 import ch.fhnw.lsp.env.LspState(ServerResult, Error, report, asServerResult)
@@ -16,9 +17,12 @@ processCompletionRequest :: CompletionRequestParams -> LspEnv IO CompletionList
 processCompletionRequest params =
   case params.context >>= _.triggerCharacter of
     Just "." -> do
+      waitForCompilation maxWaitForCompilationTime
       items <- completionList params
       pure CompletionList { isIncomplete = False, items = map CompletionItem items }
     _        -> pure $ CompletionList { isIncomplete = False, items = [] }
+  where
+    maxWaitForCompilationTime = 5000
 
 completionList :: CompletionRequestParams -> LspEnv IO [String]
 completionList params = do
@@ -40,3 +44,20 @@ findToken pos uri globals = do
     pos.{character <- (\c -> c - 1)} -- we want the token before the `.`
     global
   pure (token, global)
+
+waitForCompilation :: Long -> LspEnv IO ()
+waitForCompilation maxWaitTime
+  | maxWaitTime < waitMsPerTry -> do 
+      logInfo $ "Waited for " ++ "ms for compilation to complete, giving up."
+      pure ()
+  | otherwise -> do
+      waiting <- waitingForCompilation 
+      if waiting then do
+        logInfo $ "Waiting for Compilation to complete"
+        liftIO $ Thread.sleep waitMsPerTry
+        waitForCompilation (maxWaitTime - waitMsPerTry)
+      else pure ()
+  where
+    waitMsPerTry = 100
+    waitingForCompilation = access _.waitForCompilation >>= (liftIO . atomically . TVar.read)
+

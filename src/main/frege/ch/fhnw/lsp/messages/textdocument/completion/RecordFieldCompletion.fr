@@ -1,0 +1,61 @@
+module ch.fhnw.lsp.messages.textdocument.completion.RecordFieldCompletion where
+
+import Compiler.types.QNames(QName, TName)
+import Control.monad.State(evalState, State)
+import Compiler.types.Symbols(SymV, SymT)
+import Compiler.types.Global(Global, Symbol)
+import Compiler.types.QNames(QName, TName)
+import Compiler.types.Types   (Sigma, ForAll, Rho, RhoTau, RhoFun, Tau, TCon, TApp)
+import Data.TreeMap as TM (values)
+
+findMembers :: QName -> Global -> [String]
+findMembers qname sourceGlobal = case result of 
+  Nothing -> []
+  Just a  -> a
+  where 
+    result :: Maybe [String]
+    result = do
+      -- we only deal with variables and functions for now
+      symbol@(SymV{}) <- sourceGlobal.find qname 
+      -- sigma has all the type informations we need
+      let sigma = symbol.typ
+      tname <- tNameFromSigma sigma
+      let members = evalState (getFields tname) sourceGlobal 
+      pure members
+
+getFields :: QName -> State Global [String]
+getFields recTName = do
+  g <- State.get
+  case g.findit recTName of
+    -- Now we have the type of the record, with env containing ctors, methods & 
+    -- record accessors
+    Just (SymT { env }) -> 
+      pure
+        [ field
+        | SymV { name = MName belongingTName field } <- values env
+          -- only the fields on this tname
+        , belongingTName == recTName
+        ]
+    -- not a record-type (or unknown name)
+    _ -> pure []
+
+tNameFromSigma :: Sigma -> Maybe QName
+tNameFromSigma (ForAll _ rho) = case rho of
+  -- a simple non-function, e.g. `Person`
+  RhoTau _ tau       -> tauTName tau
+
+  -- a unary function, e.g. `Person -> Field`
+  RhoFun _ arg _     -> case arg of
+    ForAll _ (RhoTau _ tau) -> tauTName tau
+    _                       -> Nothing
+
+  -- multi-arg functions are nested RhoFun; you always peel off the first
+  -- argument if you're looking for the "receiver" type in a field-accessor.
+  _ -> Nothing
+
+  where -- | Walk a Tau until you find the TCon at its head.
+    tauTName :: Tau -> Maybe QName
+    tauTName (TCon { name = t }) = Just t
+    tauTName (TApp f _)          = tauTName f
+    tauTName _                   = Nothing
+

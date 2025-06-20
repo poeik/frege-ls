@@ -26,11 +26,10 @@ p_Encoding =
   in
     once $ actual == expected
 
-p_ExtractMessageLength :: Property
-p_ExtractMessageLength = 
+p_ExtractMessageLengthFromHeader :: Property
+p_ExtractMessageLengthFromHeader = 
   let
     header  = "Content-Length: 18"
-    body    = "{\"testing\" : true}"
-    actual  = extractMessageLength $ header ++ "\r\n\r\n" ++ body
+    actual  = extractMessageLength $ header
   in
     once $ actual == 18

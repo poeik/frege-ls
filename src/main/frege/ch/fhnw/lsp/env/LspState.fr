@@ -12,18 +12,21 @@ data ServerError = Error String
 initialState :: Monad m => Logger m -> IO (LspState m)
 initialState logger = do 
   globals             <- atomically $ TVar.new empty
+  waitForCompilation  <- atomically $ TVar.new False
   pure LspState {
-    rootPath        = report "No root path provided"
-  , globals         = globals
-  , projectGlobal   = Nothing
-  , logger          = logger
+    rootPath           = report "No root path provided"
+  , globals            = globals
+  , waitForCompilation = waitForCompilation
+  , projectGlobal      = Nothing
+  , logger             = logger
   }
 
 data LspState m = LspState { 
-  rootPath      :: ServerResult URI 
-, globals       :: TVar (HashMap URI Global)
-, projectGlobal :: Maybe Global
-, logger        :: Logger m
+  rootPath           :: ServerResult URI 
+, globals            :: TVar (HashMap URI Global)
+, waitForCompilation :: TVar Bool
+, projectGlobal      :: Maybe Global
+, logger             :: Logger m
 }
 
 report :: String -> ServerResult a
@@ -42,3 +45,7 @@ updateGlobals newGlobals st = atomically $ do
     values  <- st.globals.read
     let result = union newGlobals values
     st.globals.write result
+
+setWaitForCompilation :: Bool -> LspState IO -> IO ()
+setWaitForCompilation wait st = atomically $
+    st.waitForCompilation.write wait

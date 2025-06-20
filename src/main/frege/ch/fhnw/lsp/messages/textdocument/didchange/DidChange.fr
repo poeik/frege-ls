@@ -2,7 +2,9 @@ module ch.fhnw.lsp.messages.textdocument.didchange.DidChange where
 
 import ch.fhnw.lsp.messages.textdocument.didchange.DidChangeTypes(DidChangeNotificationParams)
 import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, liftIO, access, get, runLspEnv, modify)
+import ch.fhnw.lsp.env.LspState(setWaitForCompilation)
 import ch.fhnw.lsp.utils.Globals(compileInMemoryAndUpdateURIGlobals)
+import ch.fhnw.lsp.utils.Utils(joinedBy)
 
 import Java.Lang(Runnable)
 
@@ -13,13 +15,28 @@ data DebouncedAction = native ch.fhnw.lsp.messages.textdocument.didchange.Deboun
 
 processDidChangeNotification :: DidChangeNotificationParams -> LspEnv IO ()
 processDidChangeNotification params = do
-  logger <- access _.logger
-  state  <- get
+  state     <- get
   debouncer <- liftIO $ DebouncedAction.new 200
   runnable  <- liftIO $ Runnable.new
     (do
-      _ <- runLspEnv state (compileInMemoryAndUpdateURIGlobals params.textDocument.uri (head params.contentChanges).text)
+      let content = (head params.contentChanges).text
+      let text = dropTrailingDots content
+      _ <- runLspEnv state (compileInMemoryAndUpdateURIGlobals params.textDocument.uri text)
       pure ()
     )
   liftIO $ debouncer.trigger runnable
   pure ()
+
+dropTrailingDots :: String -> String
+dropTrailingDots text = (map removeTrailingDot lines) `joinedBy` "\r\n"
+  where 
+    lines = toList $ strSplit text "\\R"
+
+removeTrailingDot line
+  | strEndsWith line "." -> substring line 0 (line.length - 1)
+  | otherwise            -> line
+
+pure native strSplit split       :: String -> String -> JArray String
+pure native strEndsWith endsWith :: String -> String -> Bool
+pure native substring substring  :: String -> Int -> Int -> String
+

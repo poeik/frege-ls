@@ -23,7 +23,9 @@ startLsp log = do
   st <- initialState log
   forever (mainLoop st)
       `catch` eof log
-      `finally` log "Shutting down Frege LSP"
+      `finally` 
+        log "Shutting down after error occurance" 
+          >> System.exit 1
     where
       eof :: Logger IO -> EOFException -> IO ()
       eof log e = log $ "an error occurred" ++ e.getMessage

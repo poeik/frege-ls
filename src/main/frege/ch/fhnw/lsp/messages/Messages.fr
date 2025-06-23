@@ -12,6 +12,7 @@ import ch.fhnw.lsp.messages.textdocument.completion.Completion(processCompletion
 import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionRequestParams, CompletionList)
 import ch.fhnw.lsp.messages.textdocument.didchange.DidChangeTypes(DidChangeNotificationParams)
 import ch.fhnw.lsp.messages.textdocument.didchange.DidChange(processDidChangeNotification)
+import ch.fhnw.lsp.messages.exit.Exit(processExitNotification)
 import ch.fhnw.lsp.messages.GeneralLspTypes(Location)
 
 import ch.fhnw.lsp.env.LspEnv
@@ -26,9 +27,8 @@ processMessage (DidOpenNotification params)   = fmap (const EmptyResponse)   (pr
 processMessage (DidSaveNotification params)   = fmap (const EmptyResponse)   (processDidSaveNotification params)
 processMessage (CompletionRequest id params)  = fmap (CompletionResponse id) (processCompletionRequest params)
 processMessage (DidChangeNotification params) = fmap (const EmptyResponse)   (processDidChangeNotification params)
-
-debounce :: (a -> b) -> a -> Integer -> (() | b)
-debounce f a millis = Left ()
+processMessage (ShutdownRequest id)           = pure (ShutdownResponse id) 
+processMessage ExitNotification               = fmap (const EmptyResponse)   (processExitNotification)
 
 -- All supported requests
 data Request = InitializeRequest      { id :: Int, initParams       :: InitializeRequestParams } 
@@ -38,6 +38,8 @@ data Request = InitializeRequest      { id :: Int, initParams       :: Initializ
              | DidSaveNotification    {            didSaveParams    :: DidSaveNotificationParams }
              | DidChangeNotification  {            didChangeParams  :: DidChangeNotificationParams }
              | InitializedRequest 
+             | ShutdownRequest        { id :: Int } 
+             | ExitNotification
 
 instance FromJSON Request where
   fromJSON (Struct as) = do
@@ -66,14 +68,20 @@ instance FromJSON Request where
       "textDocument/didChange" -> do
         didChangeParams <- field "params" as
         pure DidChangeNotification { didChangeParams }
+      "shutdown" -> do
+        id <- field "id" as
+        pure ShutdownRequest { id }
+      "exit" -> do
+        pure ExitNotification
       unsupported -> do
-        fail $ "Unsupported message with method \"" ++ unsupported ++ "\" received"
+        fail $ "Unsupported message with method \"" ++ unsupported ++ "\" received, message: " ++ show as
   fromJSON garbage = fail ("couldn't decode message from: " ++ show garbage)
 
 -- all supported responses
 data Response = InitializeResponse Int InitializeResult
               | DefinitionResponse Int Location 
               | CompletionResponse Int CompletionList
+              | ShutdownResponse   Int 
               | EmptyResponse
 
 derive Show Response
@@ -97,6 +105,11 @@ instance ToJSON Response where
               ("jsonrpc", toJSON "2.0"),
               ("id",      toJSON id),
               ("result", toJSON completionList)
+           ]
+  toJSON (ShutdownResponse id) = 
+    Struct [ 
+              ("jsonrpc", toJSON "2.0"),
+              ("id",      toJSON id)
            ]
 
 data Method = Method String

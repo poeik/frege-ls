@@ -1,7 +1,8 @@
 plugins {
+    id 'application'
     id 'ch.fhnw.thga.frege' version '4.2.0-alpha'
     id 'java'
-    id 'com.gradleup.shadow' version '8.3.6'
+    // id 'com.gradleup.shadow' version '8.3.6'
 }
 
 dependencies {
@@ -24,12 +25,17 @@ sourceSets {
     }
 }
 
-shadowJar {
-    archiveClassifier.set('')
-    manifest {
-        attributes 'Main-Class': 'ch.fhnw.lsp.Main'
-    }
+application {
+    mainClass = 'ch.fhnw.lsp.Main'
 }
+
+
+// shadowJar {
+//     archiveClassifier.set('')
+//     manifest {
+//         attributes 'Main-Class': 'ch.fhnw.lsp.Main'
+//     }
+// }
 
 // Make sure the generated sources are available before compiling Java
 compileJava.dependsOn compileFrege

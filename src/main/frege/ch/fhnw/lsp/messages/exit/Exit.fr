@@ -1,0 +1,9 @@
+module ch.fhnw.lsp.messages.exit.Exit where
+
+import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, liftIO)
+
+processExitNotification :: LspEnv IO ()
+processExitNotification = do 
+    logInfo "Shutting down Frege LSP"
+    liftIO $ System.exit 0
+

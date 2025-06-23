@@ -11,15 +11,12 @@ Tested with:
 - Gradle 8.10
 - Java 17.0.9
 
-## Building and executing
+## Building
 
-Run `gradle shadowJar` to build a jar file and execute it with `java -jar ./build/libs/frege-lsp.jar`.
+Run `gradle installDist` to build a jar file and execute it with `./build/install/frege-lsp/bin/frege-lsp`.
 
 To see log outputs, add the path to an empty file to the `java -jar`-command. Follow
 the logs using `tail -f path/to/log/file`.
-
-If you run into stack overflows, consider to increase the max stack size using
-an `-Xss`-flag.
 
 ## Running the code
 

@@ -2,7 +2,7 @@ module ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes where
 
 import Data.JSON(FromJSON, ToJSON, Struct, field, optional)
 
-import ch.fhnw.lsp.messages.GeneralLspTypes(TextDocument, Position)
+import ch.fhnw.lsp.messages.GeneralLspTypes(TextDocument, Position, MarkupContent)
 
 data CompletionRequestParams = CompletionRequestParams {
   context      :: Maybe CompletionContext
@@ -23,9 +23,14 @@ data CompletionList = CompletionList {
 derive Show CompletionList
 
 data CompletionItem = CompletionItem {
-  label :: String
+  label         :: String
+, kind          :: CompletionItemKind
+, documentation :: MarkupContent
 }
 derive Show CompletionItem
+
+data CompletionItemKind = Function      
+derive Show CompletionItemKind
 
 -------------  FromJSON instances ------------- 
 
@@ -53,5 +58,12 @@ instance ToJSON CompletionList where
            ]
 
 instance ToJSON CompletionItem where
-  toJSON (CompletionItem label) = 
-    Struct [ ("label", toJSON label) ]
+  toJSON (CompletionItem label kind documentation) = 
+    Struct [
+      ("label"        , toJSON label)
+    , ("kind"         , toJSON kind) 
+    , ("documentation", toJSON documentation) 
+    ]
+
+instance ToJSON CompletionItemKind where
+  toJSON Function = toJSON 3

@@ -1,0 +1,36 @@
+module ch.fhnw.lsp.messages.textdocument.completion.ModuleMemberCompletion where
+
+import Compiler.types.Tokens(Token, KeyTk)
+import Compiler.types.Global(Global, Symbol, IdInfo)
+import ch.fhnw.lsp.env.LspEnv(LspEnv)
+import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionItem)
+import ch.fhnw.lsp.utils.Globals(findGlobalForModule)
+import ch.fhnw.lsp.utils.Documentation(documentSymbol)
+import Compiler.types.SourceDefinitions(funbinding)
+import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionItemKind(Function))
+
+findModuleMembers :: Token -> Global -> LspEnv IO [CompletionItem]
+findModuleMembers token sourceGlobal = do
+  target <- findGlobalForModule token.value sourceGlobal
+  pure $ case target of
+    Just g  -> symbolsInModule g
+    Nothing -> []
+
+symbolsInModule :: Global -> [CompletionItem]
+symbolsInModule g = map buildCompletionItem (toQNames defs)
+  where
+    defs :: [Token]
+    defs = [a
+           | def <- g.sub.sourcedefs
+           , (Just a) <- [funbinding def]
+           ]
+    toQNames :: [Token] -> [Symbol]
+    toQNames tks = [sym
+                   | tk <- tks
+                   , Just (Right qname) <- [findIdInfo tk] 
+                   , Just sym           <- [g.findit qname]
+                   ]
+    findIdInfo :: Token -> Maybe IdInfo
+    findIdInfo = g.sub.idKind.lookup . KeyTk
+    buildCompletionItem :: Symbol -> CompletionItem
+    buildCompletionItem symbol = CompletionItem symbol.name.key Function (documentSymbol g symbol)

@@ -1,5 +1,7 @@
 module ch.fhnw.lsp.messages.textdocument.completion.RecordFieldCompletion where
 
+import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionItem, CompletionItemKind(Function))
+
 import Compiler.types.QNames(QName, TName)
 import Control.monad.State(evalState, State)
 import Compiler.types.Symbols(SymV, SymT)
@@ -7,23 +9,23 @@ import Compiler.types.Global(Global, Symbol)
 import Compiler.types.QNames(QName, TName)
 import Compiler.types.Types   (Sigma, ForAll, Rho, RhoTau, RhoFun, Tau, TCon, TApp)
 import Data.TreeMap as TM (values)
+import ch.fhnw.lsp.utils.Documentation(documentSymbol)
 
-findMembers :: QName -> Global -> [String]
+findMembers :: QName -> Global -> [CompletionItem]
 findMembers qname sourceGlobal = case result of 
   Nothing -> []
   Just a  -> a
   where 
-    result :: Maybe [String]
+    result :: Maybe [CompletionItem]
     result = do
-      -- we only deal with variables and functions for now
-      symbol@(SymV{}) <- sourceGlobal.find qname 
+      symbol <- sourceGlobal.find qname 
       -- sigma has all the type informations we need
       let sigma = symbol.typ
       tname <- tNameFromSigma sigma
       let members = evalState (getFields tname) sourceGlobal 
       pure members
 
-getFields :: QName -> State Global [String]
+getFields :: QName -> State Global [CompletionItem]
 getFields recTName = do
   g <- State.get
   case g.findit recTName of
@@ -31,13 +33,15 @@ getFields recTName = do
     -- record accessors
     Just (SymT { env }) -> 
       pure
-        [ field
-        | SymV { name = MName belongingTName field } <- values env
+        [ completionItem g name sym
+        | sym@(SymV { name = MName belongingTName name, typ }) <- values env
           -- only the fields on this tname
         , belongingTName == recTName
         ]
     -- not a record-type (or unknown name)
     _ -> pure []
+    where 
+      completionItem global name sym = CompletionItem name Function (documentSymbol global sym)
 
 -- \ Get the name of the type ctor the sigma belongs to
 tNameFromSigma :: Sigma -> Maybe QName
@@ -54,5 +58,3 @@ tNameFromSigma (ForAll _ rho) = rhoTName rho
     rhoTName (RhoTau _ tau) = tauTName tau
     -- a function (e.g. `a :: Monad m => a -> m String`)
     rhoTName (RhoFun _ _ r) = rhoTName r
-
-

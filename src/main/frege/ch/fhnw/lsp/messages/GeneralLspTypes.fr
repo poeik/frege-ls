@@ -86,6 +86,15 @@ data URI = native java.net.URI where
 instance Show URI where show = URI.toString
 instance Eq   URI where (==) = URI.equals
 
+data MarkupContent = MarkupContent {
+  kind  :: MarkupKind
+, value :: String
+}
+derive Show MarkupContent
+
+data MarkupKind = PlainText | Markdown
+derive Show MarkupKind
+
 -------------  FromJSON instances ------------- 
 
 instance FromJSON URI where
@@ -159,3 +168,12 @@ instance ToJSON Range where
            , ("end",   toJSON end)
            ]
 
+instance ToJSON MarkupContent where
+  toJSON MarkupContent { kind, value } =
+    Struct [ ("kind",  toJSON kind)
+           , ("value", toJSON value)
+           ]
+
+instance ToJSON MarkupKind where
+  toJSON PlainText = toJSON "plaintext"
+  toJSON Markdown  = toJSON "markdown"

@@ -1,19 +1,18 @@
 module ch.fhnw.lsp.messages.textdocument.completion.Completion where
 
 import Control.concurrent.STM(atomically, TVar)
-import Compiler.types.Tokens(Token)
-import Compiler.types.Global(Global, Symbol)
-import Compiler.types.SourceDefinitions(funbinding)
+import Compiler.types.Tokens(Token, KeyTk)
+import Compiler.types.Global(Global, Symbol, IdInfo)
 import Data.HashMap(HashMap)
+import Compiler.types.QNames(QName)
 
-import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, access, liftResult, access, liftIO)
-import ch.fhnw.lsp.utils.Globals(findGlobal,findGlobalForModule, readGlobals)
-import ch.fhnw.lsp.utils.Utils(note, tokenAt)
-import ch.fhnw.lsp.env.LspState(ServerResult, Error, report, asServerResult, Error)
+import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, liftResult, access, liftIO)
+import ch.fhnw.lsp.utils.Globals(findGlobal, readGlobals)
+import ch.fhnw.lsp.utils.Utils(tokenAt)
 import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionList, CompletionItem, CompletionRequestParams)
 import ch.fhnw.lsp.messages.textdocument.completion.RecordFieldCompletion(findMembers)
 import ch.fhnw.lsp.messages.GeneralLspTypes(Position, URI)
-import Compiler.types.QNames(QName)
+import ch.fhnw.lsp.messages.textdocument.completion.ModuleMemberCompletion(findModuleMembers)
 
 processCompletionRequest :: CompletionRequestParams -> LspEnv IO CompletionList
 processCompletionRequest params =
@@ -22,12 +21,12 @@ processCompletionRequest params =
       waitForCompilation maxWaitForCompilationTime
       logInfo "analyzing completions"
       items <- completionList params
-      pure CompletionList { isIncomplete = False, items = map CompletionItem items }
+      pure CompletionList { isIncomplete = False, items = items }
     _        -> pure $ CompletionList { isIncomplete = False, items = [] }
   where
     maxWaitForCompilationTime = 5000
 
-completionList :: CompletionRequestParams -> LspEnv IO [String]
+completionList :: CompletionRequestParams -> LspEnv IO [CompletionItem]
 completionList params = do
   globals     <- readGlobals
   (token, sourceGlobal)   <- findToken params.position params.textDocument.uri globals
@@ -35,17 +34,8 @@ completionList params = do
     -- lets find all members of the token
     Just qname -> pure $ findMembers qname sourceGlobal
     -- cannot resolve token. Try to load the members of the module 
-    Nothing    -> resolveModule token sourceGlobal
-  where
-    resolveModule token sourceGlobal = do
-      target <- findGlobalForModule token.value sourceGlobal
-      maybeDefs = case target of
-        Just a  ->  map funbinding a.sub.sourcedefs
-        Nothing -> []
-      let defs      = catMaybes maybeDefs
-      let names     = map _.value defs
-      pure names
-
+    Nothing    -> findModuleMembers token sourceGlobal
+    
 findToken :: Position -> URI -> HashMap URI Global -> LspEnv IO (Token, Global)
 findToken pos uri globals = do
   global <- liftResult $ findGlobal uri globals

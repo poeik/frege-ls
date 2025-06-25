@@ -5,7 +5,7 @@ import ch.fhnw.lsp.rpc.Rpc
 import Data.JSON
 import Test.QuickCheck
 
-data TestData = TestData { testing :: Bool }
+data TestData = TestData { testing :: String }
 
 derive Eq TestData
 
@@ -21,8 +21,16 @@ instance FromJSON TestData where
 p_Encoding :: Property
 p_Encoding = 
   let
-    expected  = "Content-Length: 18\r\n\r\n{\"testing\" : true}"
-    actual    = encodeMessage $ TestData True
+    expected  = "Content-Length: 18\r\n\r\n{\"testing\" : \"12\"}"
+    actual    = encodeMessage $ TestData "12"
+  in
+    once $ actual == expected
+
+p_EncodingWithGreek :: Property
+p_EncodingWithGreek = 
+  let
+    expected  = "Content-Length: 19\r\n\r\n{\"testing\" : \"1ω\"}"
+    actual    = encodeMessage $ TestData "1ω"
   in
     once $ actual == expected
 

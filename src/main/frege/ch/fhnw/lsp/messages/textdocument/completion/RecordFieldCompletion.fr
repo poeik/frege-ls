@@ -3,7 +3,6 @@ module ch.fhnw.lsp.messages.textdocument.completion.RecordFieldCompletion where
 import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionItem, CompletionItemKind(Function))
 
 import Compiler.types.QNames(QName, TName)
-import Control.monad.State(evalState, State)
 import Compiler.types.Symbols(SymV, SymT)
 import Compiler.types.Global(Global, Symbol)
 import Compiler.types.QNames(QName, TName)
@@ -22,26 +21,37 @@ findMembers qname sourceGlobal = case result of
       -- sigma has all the type informations we need
       let sigma = symbol.typ
       tname <- tNameFromSigma sigma
-      let members = evalState (getFields tname) sourceGlobal 
+      let members = getFields tname sourceGlobal 
       pure members
 
-getFields :: QName -> State Global [CompletionItem]
-getFields recTName = do
-  g <- State.get
+getFields :: QName -> Global -> [CompletionItem]
+getFields recTName g = 
   case g.findit recTName of
     -- Now we have the type of the record, with env containing ctors, methods & 
     -- record accessors
     Just (SymT { env }) -> 
-      pure
-        [ completionItem g name sym
+        [ completionItem g (replaceDollarX name) sym
         | sym@(SymV { name = MName belongingTName name, typ }) <- values env
           -- only the fields on this tname
         , belongingTName == recTName
+        -- we drop has$X suggestion 
+        , notHasX name
         ]
     -- not a record-type (or unknown name)
-    _ -> pure []
+    _ -> []
     where 
       completionItem global name sym = CompletionItem name Function (documentSymbol global sym)
+      -- This turns the internally handled names for the Frege record syntactic 
+      -- sugar into the real syntax
+      replaceDollarX :: String -> String
+      replaceDollarX str = case unpacked str of
+        'u': 'p': 'd': '$' : rest -> "{" ++ (packed rest) ++ " = }"
+        'c': 'h': 'g': '$' : rest -> "{" ++ (packed rest) ++ " <- (\\" ++ (packed rest) ++ " -> " ++ (packed rest) ++ ")}"
+        otherwise                 -> str
+      notHasX :: String -> Bool
+      notHasX str = case unpacked str of
+        'h': 'a': 's': '$' : _ -> False
+        otherwise              -> True
 
 -- \ Get the name of the type ctor the sigma belongs to
 tNameFromSigma :: Sigma -> Maybe QName

@@ -58,11 +58,9 @@ findGlobal uri globals = note Error "No global for given URI found" $ globals.lo
 findOrLoadGlobal :: URI -> LspEnv IO (Maybe Global)
 findOrLoadGlobal uri = do
   globals <- readGlobals
-  target  <- either 
-    (const $ compileFileAndUpdateURIGlobals uri)
-    (pure . Just)
-    (findGlobal uri globals)
-  pure target
+  case (findGlobal uri globals) of
+    Right !g -> pure $ Just g
+    otherwise -> compileFileAndUpdateURIGlobals uri
 
 findGlobalForModule :: String -> Global -> LspEnv IO (Maybe Global)
 findGlobalForModule moduleName sourceGlobal = do

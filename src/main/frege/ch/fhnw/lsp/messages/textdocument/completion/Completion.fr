@@ -17,12 +17,14 @@ import ch.fhnw.lsp.messages.textdocument.completion.ModuleMemberCompletion(findM
 processCompletionRequest :: CompletionRequestParams -> LspEnv IO CompletionList
 processCompletionRequest params =
   case params.context >>= _.triggerCharacter of
-    Just "." -> do
+    Just "."  -> do
+      -- We don't have the latest versions of the compiled files yet, 
+      -- therefore we wait for the compiler to finish.
       waitForCompilation maxWaitForCompilationTime
       logInfo "analyzing completions"
       items <- completionList params
       pure CompletionList { isIncomplete = False, items = items }
-    _        -> pure $ CompletionList { isIncomplete = False, items = [] }
+    otherwise -> pure $ CompletionList { isIncomplete = False, items = [] }
   where
     maxWaitForCompilationTime = 5000
 
@@ -50,11 +52,16 @@ tokenToQName tok sourceGlobal = do
     Just (Right qname) -> Just qname
     _ -> Nothing
 
+{---
+  This function reads the `watingForCompilation` state from `LspState`. If this
+  TVar is set to `true` it blocks the current thread by sleeping for a short 
+  period. Specify a suitable `maxWaitTime` which is the max amount of time 
+  following computations in the monadic sequencing may be deferred.
+-}
 waitForCompilation :: Long -> LspEnv IO ()
 waitForCompilation maxWaitTime
   | maxWaitTime < waitMsPerTry -> do 
       logInfo $ "Waited for " ++ "ms for compilation to complete, giving up."
-      pure ()
   | otherwise -> do
       waiting <- waitingForCompilation 
       if waiting then do

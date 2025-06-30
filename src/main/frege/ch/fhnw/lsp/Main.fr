@@ -61,7 +61,13 @@ readMessage = do
 
 readChars :: Int -> IO String
 readChars amt = do
-  arr <- newArray amt
+  arr    <- newArray amt
   let offset = 0
   length <- stdin.read arr offset amt
-  readonly fromChars arr
+  msg    <- readonly fromChars arr
+  -- We receive a chunk of bytes not chars, meaning the array we allocate 
+  -- is too big when any character is a non ascii-symbol. We therefore process 
+  -- the message delete remaining null characters.
+  pure $ (packed . filter nonNulls . unpacked) msg
+  where
+    nonNulls = (/=) '\u0000'

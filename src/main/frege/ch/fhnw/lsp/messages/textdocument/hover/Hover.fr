@@ -5,7 +5,7 @@ import Compiler.types.QNames(QName)
 import Compiler.types.Tokens(Token)
 import Data.HashMap(HashMap)
 
-import ch.fhnw.lsp.messages.GeneralLspTypes(URI, MarkupContent, Markdown, Position)
+import ch.fhnw.lsp.messages.GeneralLspTypes(URI, MarkupContent, Markdown, Position, Range)
 import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, liftResult)
 import ch.fhnw.lsp.env.LspState(report, ServerResult, ServerError(Error))
 import ch.fhnw.lsp.messages.textdocument.hover.HoverTypes(HoverRequestParams, HoverResult)
@@ -18,15 +18,15 @@ processHoverRequest params = do
   let currentUri = params.textDocument.uri
   let cursorPos  = params.position
   logInfo $ "requested hover for: " ++ currentUri.getPath ++  " at position: " ++ show cursorPos
-  documentation <- hoverInformation currentUri cursorPos
-  pure $ HoverResult { contents = documentation }
+  (documentation, range) <- hoverInformation currentUri cursorPos
+  pure $ HoverResult { contents = documentation, range = range }
 
-hoverInformation :: URI -> Position -> LspEnv IO MarkupContent
+hoverInformation :: URI -> Position -> LspEnv IO (MarkupContent, Range)
 hoverInformation uri position = do
   globals                 <- readGlobals
   (token, sourceGlobal)   <- findToken position uri globals
   case tokenToQName token sourceGlobal >>= sourceGlobal.findit of
-    Just sym -> pure $ documentSymbol sourceGlobal sym
+    Just sym -> pure $ (documentSymbol sourceGlobal sym, tokenToRange token)
     Nothing    -> liftResult $ report "Could not find hover inforamtion for requested position"
     
 findToken :: Position -> URI -> HashMap URI Global -> LspEnv IO (Token, Global)
@@ -42,3 +42,8 @@ tokenToQName tok sourceGlobal = do
     Just (Right qname) -> Just qname
     _ -> Nothing
 
+tokenToRange :: Token -> Range
+tokenToRange tok = Range { start, end }
+  where 
+    start = Position { line = tok.line, character = tok.col }
+    end   = Position { line = tok.line, character = tok.col + tok.length }

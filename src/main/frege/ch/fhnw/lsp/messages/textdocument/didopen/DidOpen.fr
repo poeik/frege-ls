@@ -4,8 +4,12 @@ import ch.fhnw.lsp.messages.GeneralLspTypes(URI)
 import ch.fhnw.lsp.env.LspEnv
 import ch.fhnw.lsp.messages.textdocument.didopen.DidOpenTypes
 import ch.fhnw.lsp.utils.Globals(compileFileAndUpdateURIGlobals)
+import ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnostics(publishDiagnosticsNotification)
 
 processDidOpenNotification :: DidOpenRequestParams -> LspEnv IO ()
 processDidOpenNotification params = do
   logInfo $ "opened: " ++ show params.textDocument.uri.getPath
-  fmap (const ()) $ compileFileAndUpdateURIGlobals params.textDocument.uri
+  maybeGlobal <- compileFileAndUpdateURIGlobals params.textDocument.uri
+  case maybeGlobal of 
+    Just g  -> publishDiagnosticsNotification g params.textDocument.version
+    Nothing -> pure ()

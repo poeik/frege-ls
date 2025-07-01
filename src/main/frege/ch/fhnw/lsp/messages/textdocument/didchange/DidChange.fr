@@ -1,10 +1,11 @@
 module ch.fhnw.lsp.messages.textdocument.didchange.DidChange where
 
 import ch.fhnw.lsp.messages.textdocument.didchange.DidChangeTypes(DidChangeNotificationParams)
+import ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnostics(publishDiagnosticsNotification)
 import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, liftIO, access, get, runLspEnv, modify)
-import ch.fhnw.lsp.env.LspState(setWaitForCompilation)
+import ch.fhnw.lsp.env.LspState(setWaitForCompilation, Error)
 import ch.fhnw.lsp.utils.Globals(compileInMemoryAndUpdateURIGlobals)
-import ch.fhnw.lsp.utils.Utils(joinedBy)
+import ch.fhnw.lsp.utils.Utils(joinedBy, note)
 
 import Java.Lang(Runnable)
 
@@ -21,7 +22,12 @@ processDidChangeNotification params = do
     (do
       let content = (head params.contentChanges).text
       let text = dropTrailingDots content
-      _ <- runLspEnv state (compileInMemoryAndUpdateURIGlobals params.textDocument.uri text)
+      _ <- runLspEnv state (do
+             maybeGlobal <- compileInMemoryAndUpdateURIGlobals params.textDocument.uri text
+             case maybeGlobal of
+               Just g -> publishDiagnosticsNotification g params.textDocument.version
+               Nothing -> pure ()
+           )
       setWaitForCompilation False state
     )
   liftIO $ debouncer.trigger runnable

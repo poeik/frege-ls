@@ -1,0 +1,53 @@
+module ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnosticsTypes where
+
+import Data.JSON(FromJSON(fromJSON), ToJSON(toJSON), Value(Struct), field, optional)
+
+import ch.fhnw.lsp.messages.GeneralLspTypes(URI, Range)
+
+data PublishDiagnosticsParams = PublishDiagnosticsParams { 
+  uri         :: URI
+, version     :: Int
+, diagnostics :: [Diagnostic]
+}
+
+data Diagnostic = Diagnostic {
+  range    :: Range
+, severity :: DiagnosticSeverity
+, message  :: String
+, source      :: String
+}
+
+data Notification a = Notification { params :: a }
+
+data DiagnosticSeverity = Error | Warning | Information | Hint
+
+instance ToJSON DiagnosticSeverity where
+  toJSON Error       = toJSON 1
+  toJSON Warning     = toJSON 2
+  toJSON Information = toJSON 3
+  toJSON Hint        = toJSON 4
+
+instance ToJSON Diagnostic where
+  toJSON (Diagnostic range severity message source) =
+    Struct [
+      ("range",    toJSON range)
+    , ("severity", toJSON severity)
+    , ("message",  toJSON message)
+    , ("source"     , toJSON source)
+    ]
+
+instance ToJSON PublishDiagnosticsParams where
+  toJSON (PublishDiagnosticsParams uri version diagnostics) =
+    Struct [
+      ("uri"        , toJSON uri)
+    , ("version"    , toJSON version)
+    , ("diagnostics", toJSON diagnostics)
+    ]
+
+instance ToJSON a => ToJSON (Notification a) where
+  toJSON (Notification params) = 
+    Struct [ 
+       ("jsonrpc", toJSON "2.0")
+     , ("method", toJSON "textDocument/publishDiagnostics")
+     , ("params", toJSON params)
+     ]

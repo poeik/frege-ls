@@ -1,0 +1,25 @@
+module ch.fhnw.lsp.messages.textdocument.hover.HoverTypes where
+
+import Data.JSON(FromJSON(fromJSON),ToJSON(toJSON), Value(Struct), field)
+
+import ch.fhnw.lsp.messages.GeneralLspTypes(TextDocument, Position, MarkupContent)
+
+data HoverRequestParams = HoverRequestParams { 
+  textDocument :: TextDocument
+, position     :: Position 
+}
+derive Show HoverRequestParams
+
+data HoverResult = HoverResult {
+  contents :: MarkupContent
+}
+derive Show HoverResult
+
+instance FromJSON HoverRequestParams where
+  fromJSON (Struct as) = HoverRequestParams <$> field "textDocument" as <*> field "position" as
+  fromJSON garbage     = fail ("couldn't decode HoverRequestParams from: " ++ show garbage)
+
+instance ToJSON HoverResult where
+  toJSON HoverResult { contents } =
+    Struct [("contents", toJSON contents)]
+

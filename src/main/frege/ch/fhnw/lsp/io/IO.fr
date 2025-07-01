@@ -1,0 +1,30 @@
+module ch.fhnw.lsp.io.IO where
+
+import ch.fhnw.lsp.rpc.Rpc(encodeMessage, extractMessageLength)
+import ch.fhnw.lsp.messages.MessageTypes(ServerMessage)
+
+pure native fromChars "new java.lang.String" :: JArray Char -> String
+
+sendServerMessage :: ServerMessage -> IO ()
+sendServerMessage = println . encodeMessage
+
+readMessage :: IO (Int, String)
+readMessage = do
+  header     <- getLine
+  _          <- getLine
+  let length = extractMessageLength header
+  message    <- readChars length
+  pure $ (length, message)
+
+readChars :: Int -> IO String
+readChars amt = do
+  arr    <- newArray amt
+  let offset = 0
+  length <- stdin.read arr offset amt
+  msg    <- readonly fromChars arr
+  -- We receive a chunk of bytes not chars, meaning the array we allocate 
+  -- is too big when any character is a non ASCII-symbol. We therefore process 
+  -- the message delete remaining null characters.
+  pure $ (packed . filter nonNulls . unpacked) msg
+  where
+    nonNulls = (/=) '\u0000'

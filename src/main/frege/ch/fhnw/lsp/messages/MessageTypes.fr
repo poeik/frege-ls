@@ -1,0 +1,77 @@
+module ch.fhnw.lsp.messages.MessageTypes where
+
+import Data.JSON(FromJSON(fromJSON), ToJSON(toJSON), Value(Struct), field)
+
+import ch.fhnw.lsp.messages.initialize.InitializeTypes(InitializeRequestParams, InitializeResult)
+import ch.fhnw.lsp.messages.textdocument.definition.DefinitionTypes(DefinitionRequestParams)
+import ch.fhnw.lsp.messages.textdocument.didopen.DidOpenTypes(DidOpenRequestParams)
+import ch.fhnw.lsp.messages.textdocument.didchange.DidChangeTypes(DidChangeNotificationParams)
+import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionRequestParams, CompletionList)
+import ch.fhnw.lsp.messages.textdocument.hover.HoverTypes(HoverRequestParams, HoverResult)
+import ch.fhnw.lsp.messages.textdocument.didsave.DidSaveTypes(DidSaveNotificationParams)
+import ch.fhnw.lsp.messages.GeneralLspTypes(Location)
+
+-- Messages sent from the client.
+data ClientMessage = InitializeRequest     { id :: Int, initParams       :: InitializeRequestParams } 
+                   | DefinitionRequest     { id :: Int, defParams        :: DefinitionRequestParams }
+                   | CompletionRequest     { id :: Int, completionParams :: CompletionRequestParams }
+                   | HoverRequest          { id :: Int, hoverParams      :: HoverRequestParams } 
+                   | ShutdownRequest       { id :: Int } 
+                   | DidOpenNotification   {            didOpenParams    :: DidOpenRequestParams }
+                   | DidSaveNotification   {            didSaveParams    :: DidSaveNotificationParams }
+                   | DidChangeNotification {            didChangeParams  :: DidChangeNotificationParams }
+                   | InitializedNotification
+                   | ExitNotification
+
+instance FromJSON ClientMessage where
+  fromJSON (Struct as) = do
+    method <- field "method" as
+    case method of 
+      "initialize"              -> InitializeRequest <$> field "id" as <*> field "params" as
+      "textDocument/definition" -> DefinitionRequest <$> field "id" as <*> field "params" as
+      "textDocument/completion" -> CompletionRequest <$> field "id" as <*> field "params" as
+      "textDocument/hover"      -> HoverRequest      <$> field "id" as <*> field "params" as
+      "shutdown"                -> ShutdownRequest   <$> field "id" as
+      "initialized"             -> pure InitializedNotification
+      "textDocument/didOpen"    -> DidOpenNotification   <$> field "params" as
+      "textDocument/didSave"    -> DidSaveNotification   <$> field "params" as
+      "textDocument/didChange"  -> DidChangeNotification <$> field "params" as
+      "exit"                    -> pure ExitNotification
+      unsupported               -> do
+        fail $ "Unsupported message with method \"" ++ unsupported ++ "\" received, message: " ++ show as
+  fromJSON garbage = fail ("couldn't decode message from: " ++ show garbage)
+
+--- Messages Sent from the Server
+data ServerMessage = InitializeResponse Int InitializeResult
+                   | DefinitionResponse Int Location 
+                   | CompletionResponse Int CompletionList
+                   | HoverResponse      Int HoverResult
+                   | ShutdownResponse   Int 
+
+derive Show ServerMessage
+
+instance ToJSON ServerMessage where
+  toJSON message = case message of
+    (InitializeResponse id result) ->
+          Struct [ protocolField, idField id, resultField result ]
+    (DefinitionResponse id result) -> 
+          Struct [ protocolField, idField id, resultField result ]
+    (CompletionResponse id result) ->
+          Struct [ protocolField, idField id, resultField result ]
+    (ShutdownResponse id)          ->
+          Struct [ protocolField, idField id ]
+    (HoverResponse id result)      ->
+          Struct [ protocolField, idField id, resultField result ]
+    where 
+      protocolField      = ("jsonrpc", toJSON "2.0")
+      idField id         = ("id"     , toJSON id)
+      resultField :: (ToJSON r) => r -> (String, Value)
+      resultField result = ("result" , toJSON result)
+
+data Method = Method String
+
+instance FromJSON Method where
+  fromJSON (Struct as) = do
+    method <- field "method" as
+    pure $ Method method
+  fromJSON garbage = fail ("couldn't decode Method: " ++ show garbage)

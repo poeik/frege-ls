@@ -1,0 +1,26 @@
+module ch.fhnw.lsp.messages.Message where
+
+import ch.fhnw.lsp.messages.initialize.Initialize(processInitializeMessage)
+import ch.fhnw.lsp.messages.textdocument.definition.Definition(processDefinitionMessage)
+import ch.fhnw.lsp.messages.textdocument.didopen.DidOpen(processDidOpenNotification)
+import ch.fhnw.lsp.messages.textdocument.didsave.DidSave(processDidSaveNotification)
+import ch.fhnw.lsp.messages.textdocument.completion.Completion(processCompletionRequest)
+import ch.fhnw.lsp.messages.textdocument.didchange.DidChange(processDidChangeNotification)
+import ch.fhnw.lsp.messages.textdocument.hover.Hover(processHoverRequest)
+import ch.fhnw.lsp.messages.exit.Exit(processExitNotification)
+import ch.fhnw.lsp.messages.MessageTypes(ServerMessage, InitializeResponse, ClientMessage, InitializeRequest, InitializedNotification, DefinitionRequest, DidOpenNotification)
+
+import ch.fhnw.lsp.env.LspEnv(LspEnv)
+
+processClientMessage :: ClientMessage -> LspEnv IO (Maybe ServerMessage)
+processClientMessage msg = case msg of
+    (InitializeRequest id params)  -> fmap (Just . (InitializeResponse id)) (processInitializeMessage params)
+    (DefinitionRequest id params)  -> fmap (Just . (DefinitionResponse id)) (processDefinitionMessage params)
+    (CompletionRequest id params)  -> fmap (Just . (CompletionResponse id)) (processCompletionRequest params)
+    (HoverRequest      id params)  -> fmap (Just . (HoverResponse id))      (processHoverRequest params)
+    (ShutdownRequest   id)         -> (pure . Just . ShutdownResponse) id
+    (DidOpenNotification   params) -> fmap (const Nothing)   (processDidOpenNotification params)
+    (DidSaveNotification   params) -> fmap (const Nothing)   (processDidSaveNotification params)
+    (DidChangeNotification params) -> fmap (const Nothing)   (processDidChangeNotification params)
+    ExitNotification               -> fmap (const Nothing)   processExitNotification
+    InitializedNotification        -> pure Nothing

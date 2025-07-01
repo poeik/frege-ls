@@ -16,7 +16,7 @@ import ch.fhnw.lsp.utils.Globals(findGlobal, readGlobals)
 processHoverRequest :: HoverRequestParams -> LspEnv IO HoverResult
 processHoverRequest params = do
   let currentUri = params.textDocument.uri
-  let cursorPos  = params.position.{character <- (+1)}
+  let cursorPos  = params.position
   logInfo $ "requested hover for: " ++ currentUri.getPath ++  " at position: " ++ show cursorPos
   documentation <- hoverInformation currentUri cursorPos
   pure $ HoverResult { contents = documentation }

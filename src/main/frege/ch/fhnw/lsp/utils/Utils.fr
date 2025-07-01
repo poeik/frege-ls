@@ -28,7 +28,7 @@ tokenAt position global =
   where
     findTokenAt :: Token -> Bool
     findTokenAt t =
-      position.line + 1 == t.line -- LSP has 0 based line numbers
+      position.line == t.line
       && position.character < (t.col + (length t.value)) 
       && position.character >= t.col
 

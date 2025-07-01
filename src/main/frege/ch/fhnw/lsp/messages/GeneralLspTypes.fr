@@ -133,9 +133,12 @@ instance FromJSON Location where
 
 instance FromJSON Position where
   fromJSON (Struct as) = do
-    line      <- field "line" as
-    character <- field "character" as
-    pure Position { line, character }
+    -- the Frege Compiler uses 1 based characters & lines 
+    -- LSP 0 based.
+    -- We transform it here to forget about it.
+    line      <- fmap (+1) $ field "line" as
+    character <- fmap (+1) $ field "character" as
+    pure Position { line, character  }
   fromJSON garbage = fail ("couldn't decode Position from: " ++ show garbage)
 
 instance FromJSON Range where
@@ -158,8 +161,11 @@ instance ToJSON Location where
 
 instance ToJSON Position where
   toJSON Position { line, character } =
-    Struct [ ("line", toJSON line)
-           , ("character", toJSON character)
+    -- the Frege Compiler uses 1 based characters & lines 
+    -- LSP 0 based.
+    -- We transform it here to forget about it.
+    Struct [ ("line",      toJSON $ line - 1)
+           , ("character", toJSON $ character - 1)
            ]
 
 instance ToJSON Range where

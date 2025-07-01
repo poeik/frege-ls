@@ -2,7 +2,7 @@ module ch.fhnw.lsp.messages.textdocument.hover.HoverTypes where
 
 import Data.JSON(FromJSON(fromJSON),ToJSON(toJSON), Value(Struct), field)
 
-import ch.fhnw.lsp.messages.GeneralLspTypes(TextDocument, Position, MarkupContent)
+import ch.fhnw.lsp.messages.GeneralLspTypes(TextDocument, Position, MarkupContent, Range)
 
 data HoverRequestParams = HoverRequestParams { 
   textDocument :: TextDocument
@@ -12,6 +12,7 @@ derive Show HoverRequestParams
 
 data HoverResult = HoverResult {
   contents :: MarkupContent
+, range    :: Range
 }
 derive Show HoverResult
 
@@ -20,6 +21,9 @@ instance FromJSON HoverRequestParams where
   fromJSON garbage     = fail ("couldn't decode HoverRequestParams from: " ++ show garbage)
 
 instance ToJSON HoverResult where
-  toJSON HoverResult { contents } =
-    Struct [("contents", toJSON contents)]
+  toJSON HoverResult { contents, range } =
+    Struct [
+      ("contents", toJSON contents)
+    , ("range",    toJSON range)
+    ]
 

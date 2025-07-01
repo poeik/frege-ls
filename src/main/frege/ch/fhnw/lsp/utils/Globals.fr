@@ -46,7 +46,6 @@ updateURIGlobals newGlobals openedUri = do
     st <- get
     liftIO $ updateGlobals globalsMap st
     updated <- readGlobals
-    logInfo $ "All loaded globals: " ++ (show . keys) updated
     liftEither $ Right (lookup openedUri updated)
   where
     dropLefts :: [((String | URI), Global)] -> [(URI, Global)]

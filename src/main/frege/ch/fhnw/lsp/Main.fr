@@ -3,13 +3,13 @@ module ch.fhnw.lsp.Main where
 import Control.monad.trans.EitherT
 import Data.JSON
 
-import ch.fhnw.lsp.logger.Logger
-import ch.fhnw.lsp.rpc.Rpc
-import ch.fhnw.lsp.messages.Messages
-import ch.fhnw.lsp.env.LspEnv
-import ch.fhnw.lsp.env.LspState
-
-pure native fromChars "new java.lang.String" :: JArray Char -> String
+import ch.fhnw.lsp.logger.Logger(swallowLog, getFileLogger, printWriterLog, Logger)
+import ch.fhnw.lsp.rpc.Rpc(decodeMessage)
+import ch.fhnw.lsp.messages.Message(processClientMessage)
+import ch.fhnw.lsp.messages.MessageTypes(ServerMessage, Method)
+import ch.fhnw.lsp.env.LspEnv(runLspEnv, LspEnv, liftMonad, liftEither, logInfo)
+import ch.fhnw.lsp.env.LspState(initialState, LspState, ServerError(Error))
+import ch.fhnw.lsp.io.IO(sendServerMessage, readMessage)
 
 main []             = startLsp swallowLog
 main (filePath : _) = do
@@ -32,42 +32,18 @@ startLsp log = do
 
 mainLoop :: LspState IO -> IO ()
 mainLoop st = do 
-  (result, st) <- runLspEnv st $ handleMessage
+  (result, st) <- runLspEnv st $ handleClientMessage
   case result of 
     Left  (Error err) -> st.logger $ "An error occured: " ++ err
-    Right response    -> sendResponse response
+    Right (Just msg) -> sendServerMessage msg
+    otherwise        -> pure ()
   mainLoop st
 
-handleMessage :: LspEnv IO Response
-handleMessage = do
-  (length, newMessage) <- liftIO readMessage
+handleClientMessage :: LspEnv IO (Maybe ServerMessage)
+handleClientMessage = do
+  (length, newMessage) <- liftMonad readMessage
   (Method method)      <- liftEither $ parseJSON newMessage
   logInfo ("Received \"" ++ method ++ "\"-message with length: " ++ show length)
-  request   <- liftEither $ decodeMessage newMessage
-  response  <- processMessage request
-  pure response
-
-sendResponse :: Response -> IO ()
-sendResponse EmptyResponse = pure ()
-sendResponse msg           = println $ encodeMessage msg
-
-readMessage :: IO (Int, String)
-readMessage = do
-  header     <- getLine
-  _          <- getLine
-  let length = extractMessageLength header
-  message    <- readChars length
-  pure $ (length, message)
-
-readChars :: Int -> IO String
-readChars amt = do
-  arr    <- newArray amt
-  let offset = 0
-  length <- stdin.read arr offset amt
-  msg    <- readonly fromChars arr
-  -- We receive a chunk of bytes not chars, meaning the array we allocate 
-  -- is too big when any character is a non ascii-symbol. We therefore process 
-  -- the message delete remaining null characters.
-  pure $ (packed . filter nonNulls . unpacked) msg
-  where
-    nonNulls = (/=) '\u0000'
+  request        <- liftEither $ decodeMessage newMessage
+  maybeResponse  <- processClientMessage request
+  pure maybeResponse

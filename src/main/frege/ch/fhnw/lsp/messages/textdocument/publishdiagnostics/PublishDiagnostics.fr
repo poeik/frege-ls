@@ -2,20 +2,20 @@ module ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnostics w
 
 import Compiler.types.Global(Global, Message, Severity(HINT, WARNING, ERROR))
 import Compiler.types.Positions as P()
-import Data.JSON(ToJSON(toJSON), Struct)
 
 import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, liftMonad, liftResult, access)
 import ch.fhnw.lsp.env.LspState(ServerResult, asServerResult)
-import ch.fhnw.lsp.rpc.Rpc(encodeMessage)
-import ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnosticsTypes(Diagnostic, DiagnosticSeverity(Hint, Warning, Error), Notification, PublishDiagnosticsParams)
+import ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnosticsTypes(Diagnostic, DiagnosticSeverity(Hint, Warning, Error), PublishDiagnosticsParams)
 import ch.fhnw.lsp.messages.GeneralLspTypes(Range, Position, URI)
+import ch.fhnw.lsp.io.IO(sendServerMessage)
+import ch.fhnw.lsp.messages.MessageTypes(ServerMessage(PublishDiagnosticsNotification))
 
 publishDiagnosticsNotification :: Global -> Int -> LspEnv IO ()
 publishDiagnosticsNotification global version = do
   logInfo $ "publishing " ++ (show . length) global.sub.messages ++ " diagnostics"
   root   <- access _.rootPath >>= liftResult
   params <- liftResult $ diagnosticParams root version global
-  sendNotification $ Notification params
+  liftMonad $ sendServerMessage (PublishDiagnosticsNotification params)
 
 diagnosticParams :: URI -> Int -> Global -> ServerResult PublishDiagnosticsParams
 diagnosticParams root version g = do 
@@ -45,8 +45,3 @@ positionToRange position = Range { start, end }
   where 
     start = Position { line = position.first.line , character = position.first.col }
     end   = Position { line = position.last.line  , character = position.last.col + position.last.length }
-
-sendNotification :: ToJSON a => Notification a -> LspEnv IO ()
-sendNotification notifification =
-  liftMonad $ println (encodeMessage notifification)
-

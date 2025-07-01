@@ -7,6 +7,7 @@ import Data.HashMap(HashMap)
 import Compiler.types.QNames(QName)
 
 import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, liftResult, access, liftIO)
+import ch.fhnw.lsp.env.LspState(ServerResult)
 import ch.fhnw.lsp.utils.Globals(findGlobal, readGlobals)
 import ch.fhnw.lsp.utils.Utils(tokenAt)
 import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionList, CompletionItem, CompletionRequestParams)
@@ -31,19 +32,18 @@ processCompletionRequest params =
 completionList :: CompletionRequestParams -> LspEnv IO [CompletionItem]
 completionList params = do
   globals     <- readGlobals
-  (token, sourceGlobal)   <- findToken params.position params.textDocument.uri globals
+  let pos = params.position.{character <- (\c -> c - 2)} -- we want the token two positions before the cursor (one position before the cursor is the `.`)
+  (token, sourceGlobal)   <- liftResult $ findTokenAtPositionInUri pos params.textDocument.uri globals
   case tokenToQName token sourceGlobal of
     -- lets find all members of the token
     Just qname -> pure $ findMembers qname sourceGlobal
     -- cannot resolve token. Try to load the members of the module 
     Nothing    -> findModuleMembers token sourceGlobal
     
-findToken :: Position -> URI -> HashMap URI Global -> LspEnv IO (Token, Global)
-findToken pos uri globals = do
-  global <- liftResult $ findGlobal uri globals
-  token <- liftResult $ tokenAt 
-    pos.{character <- (\c -> c - 1)} -- we want the token before the `.`
-    global
+findTokenAtPositionInUri :: Position -> URI -> HashMap URI Global -> ServerResult (Token, Global)
+findTokenAtPositionInUri pos uri globals = do
+  global <-  findGlobal uri globals
+  token  <-  tokenAt pos global
   pure (token, global)
 
 tokenToQName :: Token -> Global -> Maybe QName

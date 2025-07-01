@@ -19,7 +19,7 @@ import ch.fhnw.lsp.utils.Utils(tokenAt, note, hush)
 processDefinitionMessage :: DefinitionRequestParams -> LspEnv IO Location
 processDefinitionMessage params = do
   let currentUri = params.textDocument.uri
-  let cursorPos  = params.position.{character <- (\c -> c + 1)}
+  let cursorPos  = params.position
   globalsMap    <- readGlobals
   sourceGlobal  <- liftResult $ findGlobal currentUri globalsMap
   cursorToken   <- liftResult $ findToken  cursorPos sourceGlobal 
@@ -71,11 +71,11 @@ findSymbol token global = findSymbol'
 posToRange :: P.Position -> Token -> ServerResult Range
 posToRange pos token = do
   let result = Range {
-    -- token is 1 based, cursor 0
-    start = Position { line = first.line - 1, character = first.col - 1 }
-  , end   = Position { line = last.line  - 1, character = last.col  - 1 + len }
+    start = Position { line = first.line, character = first.col }
+  , end   = Position { line = last.line, character = last.col + len }
   }
-  if result.start.line < 0 || result.start.character < 0 then
+  -- definition requests for prelude functions give an illegal source position
+  if result.start.line < 1 || result.start.character <= 0 then
     report "Received illegal source position for this token"
   else pure result
   where 

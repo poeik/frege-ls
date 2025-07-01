@@ -64,4 +64,5 @@ capabilities = ServerCapabilities {
     triggerCharacters = ["."]
   , resolveProvider   = False
   }
+, hoverProvider = True
 }

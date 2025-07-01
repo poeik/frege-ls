@@ -12,6 +12,8 @@ import ch.fhnw.lsp.messages.textdocument.completion.Completion(processCompletion
 import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionRequestParams, CompletionList)
 import ch.fhnw.lsp.messages.textdocument.didchange.DidChangeTypes(DidChangeNotificationParams)
 import ch.fhnw.lsp.messages.textdocument.didchange.DidChange(processDidChangeNotification)
+import ch.fhnw.lsp.messages.textdocument.hover.HoverTypes(HoverRequestParams, HoverResult)
+import ch.fhnw.lsp.messages.textdocument.hover.Hover(processHoverRequest)
 import ch.fhnw.lsp.messages.exit.Exit(processExitNotification)
 import ch.fhnw.lsp.messages.GeneralLspTypes(Location)
 
@@ -27,6 +29,7 @@ processMessage (DidOpenNotification params)   = fmap (const EmptyResponse)   (pr
 processMessage (DidSaveNotification params)   = fmap (const EmptyResponse)   (processDidSaveNotification params)
 processMessage (CompletionRequest id params)  = fmap (CompletionResponse id) (processCompletionRequest params)
 processMessage (DidChangeNotification params) = fmap (const EmptyResponse)   (processDidChangeNotification params)
+processMessage (HoverRequest id params)       = fmap (HoverResponse id)      (processHoverRequest params)
 processMessage (ShutdownRequest id)           = pure (ShutdownResponse id) 
 processMessage ExitNotification               = fmap (const EmptyResponse)   (processExitNotification)
 
@@ -34,6 +37,7 @@ processMessage ExitNotification               = fmap (const EmptyResponse)   (pr
 data Request = InitializeRequest      { id :: Int, initParams       :: InitializeRequestParams } 
              | DefinitionRequest      { id :: Int, defParams        :: DefinitionRequestParams }
              | CompletionRequest      { id :: Int, completionParams :: CompletionRequestParams }
+             | HoverRequest           { id :: Int, hoverParams      :: HoverRequestParams } 
              | DidOpenNotification    {            didOpenParams    :: DidOpenRequestParams }
              | DidSaveNotification    {            didSaveParams    :: DidSaveNotificationParams }
              | DidChangeNotification  {            didChangeParams  :: DidChangeNotificationParams }
@@ -68,6 +72,10 @@ instance FromJSON Request where
       "textDocument/didChange" -> do
         didChangeParams <- field "params" as
         pure DidChangeNotification { didChangeParams }
+      "textDocument/hover" -> do
+        id          <- field "id" as
+        hoverParams <- field "params" as
+        pure HoverRequest { id, hoverParams }
       "shutdown" -> do
         id <- field "id" as
         pure ShutdownRequest { id }
@@ -81,6 +89,7 @@ instance FromJSON Request where
 data Response = InitializeResponse Int InitializeResult
               | DefinitionResponse Int Location 
               | CompletionResponse Int CompletionList
+              | HoverResponse      Int HoverResult
               | ShutdownResponse   Int 
               | EmptyResponse
 
@@ -110,6 +119,12 @@ instance ToJSON Response where
     Struct [ 
               ("jsonrpc", toJSON "2.0"),
               ("id",      toJSON id)
+           ]
+  toJSON (HoverResponse id result) = 
+    Struct [ 
+              ("jsonrpc", toJSON "2.0"),
+              ("id",      toJSON id),
+              ("result", toJSON result)
            ]
 
 data Method = Method String

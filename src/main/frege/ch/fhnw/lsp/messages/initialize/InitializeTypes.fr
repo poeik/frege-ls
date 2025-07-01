@@ -41,6 +41,7 @@ data ServerCapabilities = ServerCapabilities {
   definitionProvider :: Bool
 , textDocumentSync   :: TextDocumentSyncOptions
 , completionProvider :: CompletionOptions
+, hoverProvider      :: Bool
 }
 
 derive Show ServerCapabilities
@@ -93,6 +94,7 @@ instance FromJSON WorkspaceFolder where
     uri    <- field "uri" as
     pure WorkspaceFolder { name = name, uri = uri}
   fromJSON garbage = fail ("couldn't decode WorkspaceFolder from: " ++ show garbage)
+
 -------------  ToJSON instances ------------- 
 
 instance ToJSON InitializeResult where
@@ -130,9 +132,10 @@ instance ToJSON CompletionOptions where
     ]
 
 instance ToJSON ServerCapabilities where
-  toJSON (ServerCapabilities definitionProvider textDocumentSync completionProvider) = 
+  toJSON (ServerCapabilities definitionProvider textDocumentSync completionProvider hoverProvider) = 
     Struct [
       ("definitionProvider", toJSON definitionProvider)
     , ("textDocumentSync"  , toJSON textDocumentSync)
     , ("completionProvider", toJSON completionProvider)
+    , ("hoverProvider"     , toJSON hoverProvider)
     ]

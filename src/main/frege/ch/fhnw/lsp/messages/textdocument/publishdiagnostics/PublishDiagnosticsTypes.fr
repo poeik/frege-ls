@@ -10,16 +10,18 @@ data PublishDiagnosticsParams = PublishDiagnosticsParams {
 , diagnostics :: [Diagnostic]
 }
 
+derive Show PublishDiagnosticsParams
+
 data Diagnostic = Diagnostic {
   range    :: Range
 , severity :: DiagnosticSeverity
 , message  :: String
-, source      :: String
+, source   :: String
 }
-
-data Notification a = Notification { params :: a }
+derive Show Diagnostic
 
 data DiagnosticSeverity = Error | Warning | Information | Hint
+derive Show DiagnosticSeverity
 
 instance ToJSON DiagnosticSeverity where
   toJSON Error       = toJSON 1
@@ -43,11 +45,3 @@ instance ToJSON PublishDiagnosticsParams where
     , ("version"    , toJSON version)
     , ("diagnostics", toJSON diagnostics)
     ]
-
-instance ToJSON a => ToJSON (Notification a) where
-  toJSON (Notification params) = 
-    Struct [ 
-       ("jsonrpc", toJSON "2.0")
-     , ("method", toJSON "textDocument/publishDiagnostics")
-     , ("params", toJSON params)
-     ]

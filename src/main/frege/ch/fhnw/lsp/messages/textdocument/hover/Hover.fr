@@ -27,7 +27,7 @@ hoverInformation uri position = do
   (token, sourceGlobal)   <- findToken position uri globals
   case tokenToQName token sourceGlobal >>= sourceGlobal.findit of
     Just sym -> pure $ (documentSymbol sourceGlobal sym, tokenToRange token)
-    Nothing    -> liftResult $ report "Could not find hover inforamtion for requested position"
+    Nothing    -> liftResult $ report "Could not find hover information for requested position"
     
 findToken :: Position -> URI -> HashMap URI Global -> LspEnv IO (Token, Global)
 findToken pos uri globals = do

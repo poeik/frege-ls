@@ -1,0 +1,52 @@
+module ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnostics where
+
+import Compiler.types.Global(Global, Message, Severity(HINT, WARNING, ERROR))
+import Compiler.types.Positions as P()
+import Data.JSON(ToJSON(toJSON), Struct)
+
+import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, liftMonad, liftResult, access)
+import ch.fhnw.lsp.env.LspState(ServerResult, asServerResult)
+import ch.fhnw.lsp.rpc.Rpc(encodeMessage)
+import ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnosticsTypes(Diagnostic, DiagnosticSeverity(Hint, Warning, Error), Notification, PublishDiagnosticsParams)
+import ch.fhnw.lsp.messages.GeneralLspTypes(Range, Position, URI)
+
+publishDiagnosticsNotification :: Global -> Int -> LspEnv IO ()
+publishDiagnosticsNotification global version = do
+  logInfo $ "publishing " ++ (show . length) global.sub.messages ++ " diagnostics"
+  root   <- access _.rootPath >>= liftResult
+  params <- liftResult $ diagnosticParams root version global
+  sendNotification $ Notification params
+
+diagnosticParams :: URI -> Int -> Global -> ServerResult PublishDiagnosticsParams
+diagnosticParams root version g = do 
+  uri <- asServerResult $ URI.fromGlobal root g
+  let diagnostics = map messageToDiagnostic g.sub.messages
+  pure PublishDiagnosticsParams {
+    uri         = uri
+  , version     = version
+  , diagnostics = diagnostics
+  }
+
+messageToDiagnostic :: Message -> Diagnostic
+messageToDiagnostic message = Diagnostic {
+  range    = positionToRange message.pos
+, severity = fregeSeverityToDiagnosticSeverity message.level
+, message  = message.text
+, source   = "freege"
+}
+
+fregeSeverityToDiagnosticSeverity :: Severity -> DiagnosticSeverity
+fregeSeverityToDiagnosticSeverity HINT    = Hint
+fregeSeverityToDiagnosticSeverity WARNING = Warning
+fregeSeverityToDiagnosticSeverity ERROR   = Error
+
+positionToRange :: P.Position -> Range
+positionToRange position = Range { start, end } 
+  where 
+    start = Position { line = position.first.line , character = position.first.col }
+    end   = Position { line = position.last.line  , character = position.last.col + position.last.length }
+
+sendNotification :: ToJSON a => Notification a -> LspEnv IO ()
+sendNotification notifification =
+  liftMonad $ println (encodeMessage notifification)
+

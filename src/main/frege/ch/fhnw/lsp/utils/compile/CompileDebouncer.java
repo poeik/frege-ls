@@ -1,15 +1,13 @@
-package ch.fhnw.lsp.messages.textdocument.didchange;
-
+package ch.fhnw.lsp.utils.compile;
 
 import java.util.concurrent.*;
 
-
-public class DebouncedAction {
+public class CompileDebouncer {
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private static long delayMillis = 500;
     private static ScheduledFuture<?> scheduledFuture;
 
-    public DebouncedAction(long delayMillis) {
+    public CompileDebouncer(long delayMillis) {
         this.delayMillis = delayMillis;
     }
 
@@ -17,7 +15,6 @@ public class DebouncedAction {
         if (scheduledFuture != null && !scheduledFuture.isDone()) {
             scheduledFuture.cancel(false);
         }
-
         scheduledFuture = scheduler.schedule(action, delayMillis, TimeUnit.MILLISECONDS);
     }
 

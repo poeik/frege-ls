@@ -1,49 +1,43 @@
 module ch.fhnw.lsp.messages.textdocument.didchange.DidChange where
 
+import ch.fhnw.lsp.env.LspEnv(LspEnv, liftIO, get)
+import ch.fhnw.lsp.env.LspState(setWaitForCompilation)
+import ch.fhnw.lsp.messages.GeneralLspTypes(URI, FileVersion)
 import ch.fhnw.lsp.messages.textdocument.didchange.DidChangeTypes(DidChangeNotificationParams)
 import ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnostics(publishDiagnosticsNotification)
-import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, liftIO, access, get, runLspEnv, modify)
-import ch.fhnw.lsp.env.LspState(setWaitForCompilation, Error)
-import ch.fhnw.lsp.utils.Globals(compileInMemoryAndUpdateURIGlobals)
-import ch.fhnw.lsp.utils.Utils(joinedBy, note)
-
-import Java.Lang(Runnable)
-
-data DebouncedAction = native ch.fhnw.lsp.messages.textdocument.didchange.DebouncedAction where
-  native new      :: Int -> IOMutable DebouncedAction 
-  native trigger  :: MutableIO DebouncedAction -> MutableIO Runnable -> IO ()
-  native shutdown :: MutableIO DebouncedAction -> IO ()
+import ch.fhnw.lsp.utils.Globals(compileInMemory)
+import ch.fhnw.lsp.utils.Utils(joinedBy)
+import ch.fhnw.lsp.utils.compile.DebouncedCompile(compileDebounced)
 
 processDidChangeNotification :: DidChangeNotificationParams -> LspEnv IO ()
 processDidChangeNotification params = do
-  state     <- get
-  debouncer <- liftIO $ DebouncedAction.new 200
-  runnable  <- liftIO $ Runnable.new
-    (do
-      let content = (head params.contentChanges).text
-      let text = dropTrailingDots content
-      _ <- runLspEnv state (do
-             maybeGlobal <- compileInMemoryAndUpdateURIGlobals params.textDocument.uri text
-             case maybeGlobal of
-               Just g -> publishDiagnosticsNotification g params.textDocument.version
-               Nothing -> pure ()
-           )
-      setWaitForCompilation False state
-    )
-  liftIO $ debouncer.trigger runnable
-  liftIO $ setWaitForCompilation True state
-  pure ()
+  let content = (head params.contentChanges).text
+  let version = params.textDocument.version
+  let uri     = params.textDocument.uri
+
+  compileDebounced $ compileAfterChange uri version content
+
+compileAfterChange :: URI -> FileVersion -> String -> LspEnv IO ()
+compileAfterChange uri version content = do
+  -- we remove dots at the end of line in on change compilations since the 
+  -- compiler cannot handle them, but they are very important for autocompletion
+  let text = dropTrailingDots content
+  maybeGlobal <- compileInMemory uri text
+  state <- get
+  case maybeGlobal of
+    Just g -> publishDiagnosticsNotification uri (Just version)
+    Nothing -> pure ()
+  
+  liftIO $ setWaitForCompilation False state
 
 dropTrailingDots :: String -> String
 dropTrailingDots text = (map removeTrailingDot lines) `joinedBy` "\r\n"
   where 
     lines = toList $ strSplit text "\\R"
-
-removeTrailingDot line
-  | strEndsWith line "." -> substring line 0 (line.length - 1)
-  | otherwise            -> line
+    removeTrailingDot line
+      | strEndsWith line "." -> substring line 0 (line.length - 1)
+      | otherwise            -> line
 
 pure native strSplit split       :: String -> String -> JArray String
 pure native strEndsWith endsWith :: String -> String -> Bool
 pure native substring substring  :: String -> Int -> Int -> String
-

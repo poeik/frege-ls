@@ -3,13 +3,15 @@ module ch.fhnw.lsp.messages.textdocument.didopen.DidOpen where
 import ch.fhnw.lsp.messages.GeneralLspTypes(URI)
 import ch.fhnw.lsp.env.LspEnv
 import ch.fhnw.lsp.messages.textdocument.didopen.DidOpenTypes
-import ch.fhnw.lsp.utils.Globals(compileFileAndUpdateURIGlobals)
+import ch.fhnw.lsp.utils.Globals(compileFile)
 import ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnostics(publishDiagnosticsNotification)
+import ch.fhnw.lsp.utils.compile.DebouncedCompile(compileDebounced)
 
 processDidOpenNotification :: DidOpenRequestParams -> LspEnv IO ()
 processDidOpenNotification params = do
   logInfo $ "opened: " ++ show params.textDocument.uri.getPath
-  maybeGlobal <- compileFileAndUpdateURIGlobals params.textDocument.uri
-  case maybeGlobal of 
-    Just g  -> publishDiagnosticsNotification g params.textDocument.version
-    Nothing -> pure ()
+  compileDebounced $ do
+    maybeGlobal <- compileFile params.textDocument.uri
+    case maybeGlobal of 
+      Just g  -> publishDiagnosticsNotification params.textDocument.uri (Just params.textDocument.version)
+      Nothing -> pure ()

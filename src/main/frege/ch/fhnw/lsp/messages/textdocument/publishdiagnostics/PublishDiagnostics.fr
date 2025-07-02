@@ -3,24 +3,27 @@ module ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnostics w
 import Compiler.types.Global(Global, Message, Severity(HINT, WARNING, ERROR))
 import Compiler.types.Positions as P()
 
+import ch.fhnw.lsp.utils.Globals(findOrLoadGlobal)
 import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, liftMonad, liftResult, access)
 import ch.fhnw.lsp.env.LspState(ServerResult, asServerResult)
 import ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnosticsTypes(Diagnostic, DiagnosticSeverity(Hint, Warning, Error), PublishDiagnosticsParams)
-import ch.fhnw.lsp.messages.GeneralLspTypes(Range, Position, URI)
+import ch.fhnw.lsp.messages.GeneralLspTypes(Range, Position, URI, FileVersion)
 import ch.fhnw.lsp.io.IO(sendServerMessage)
 import ch.fhnw.lsp.messages.MessageTypes(ServerMessage(PublishDiagnosticsNotification))
 
-publishDiagnosticsNotification :: Global -> Int -> LspEnv IO ()
-publishDiagnosticsNotification global version = do
-  logInfo $ "publishing " ++ (show . length) global.sub.messages ++ " diagnostics"
-  root   <- access _.rootPath >>= liftResult
-  params <- liftResult $ diagnosticParams root version global
-  liftMonad $ sendServerMessage (PublishDiagnosticsNotification params)
+publishDiagnosticsNotification :: URI -> Maybe FileVersion -> LspEnv IO ()
+publishDiagnosticsNotification uri version = do
+  maybeGlobal <- findOrLoadGlobal uri
+  case maybeGlobal of
+    Nothing     -> logInfo $ "No global found for " ++ show uri.getPath
+    Just global -> do 
+      logInfo $ "publishing " ++ (show . length) global.sub.messages ++ " diagnostics for " ++ show uri.getPath
+      params <- liftResult $ diagnosticParams uri version global.sub.messages
+      liftMonad $ sendServerMessage (PublishDiagnosticsNotification params)
 
-diagnosticParams :: URI -> Int -> Global -> ServerResult PublishDiagnosticsParams
-diagnosticParams root version g = do 
-  uri <- asServerResult $ URI.fromGlobal root g
-  let diagnostics = map messageToDiagnostic g.sub.messages
+diagnosticParams :: URI -> Maybe FileVersion -> [Message] -> ServerResult PublishDiagnosticsParams
+diagnosticParams uri version messages = do 
+  let diagnostics = map messageToDiagnostic messages
   pure PublishDiagnosticsParams {
     uri         = uri
   , version     = version

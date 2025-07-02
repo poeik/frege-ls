@@ -1,8 +1,8 @@
-module ch.fhnw.lsp.messages.textdocument.didchange.DidChangeSpec where
+module ch.fhnw.lsp.utils.compile.DebouncedCompileSpec where
 
 import Test.QuickCheck
 
-import ch.fhnw.lsp.messages.textdocument.didchange.DidChange(dropTrailingDots)
+import ch.fhnw.lsp.utils.compile.DebouncedCompile(dropTrailingDots)
 
 p_DropTrailingDots :: Property
 p_DropTrailingDots = 

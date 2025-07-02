@@ -14,8 +14,8 @@ import ch.fhnw.lsp.utils.Utils(joinedBy)
 
 import Data.HashMap
 
-compileFileAndUpdateURIGlobals :: URI -> LspEnv IO (Maybe Global)
-compileFileAndUpdateURIGlobals openedUri = do
+compileFile :: URI -> LspEnv IO (Maybe Global)
+compileFile openedUri = do
     exists <- fileExists openedUri
     if exists then do
       logInfo $ "Compiling: " ++ openedUri.getPath
@@ -31,8 +31,8 @@ compileFileAndUpdateURIGlobals openedUri = do
         where 
           file = File.new u.getPath
 
-compileInMemoryAndUpdateURIGlobals :: URI -> String -> LspEnv IO (Maybe Global)
-compileInMemoryAndUpdateURIGlobals openedUri sourceCode = do
+compileInMemory :: URI -> String -> LspEnv IO (Maybe Global)
+compileInMemory openedUri sourceCode = do
     pglobal    <- access _.projectGlobal >>= hushMaybe
     newGlobals <- liftIO $ compileMakeLSPInMemory openedUri.getPath sourceCode pglobal
     updateURIGlobals newGlobals openedUri
@@ -59,7 +59,7 @@ findOrLoadGlobal uri = do
   globals <- readGlobals
   case (findGlobal uri globals) of
     Right !g -> pure $ Just g
-    otherwise -> compileFileAndUpdateURIGlobals uri
+    otherwise -> compileFile uri
 
 findGlobalForModule :: String -> Global -> LspEnv IO (Maybe Global)
 findGlobalForModule moduleName sourceGlobal = do

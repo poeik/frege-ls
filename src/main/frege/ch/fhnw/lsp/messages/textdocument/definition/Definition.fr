@@ -2,18 +2,17 @@ module ch.fhnw.lsp.messages.textdocument.definition.Definition where
 
 import Compiler.types.Global(Global, Symbol)
 import Compiler.types.Positions as P()
-import Compiler.types.Symbols
-import Compiler.types.QNames
-import Compiler.types.NSNames
+import Compiler.types.QNames(QName(Local))
+import Compiler.types.NSNames(NSName(NSX))
 import Compiler.enums.TokenID as T()
 import Compiler.types.Tokens(Token)
-import Data.HashMap
+import Data.HashMap(HashMap, lookup)
 
-import ch.fhnw.lsp.env.LspEnv
-import ch.fhnw.lsp.utils.Globals(compileFileAndUpdateURIGlobals, findGlobal, findGlobalForModule, readGlobals)
-import ch.fhnw.lsp.env.LspState
-import ch.fhnw.lsp.messages.GeneralLspTypes
-import ch.fhnw.lsp.messages.textdocument.definition.DefinitionTypes
+import ch.fhnw.lsp.env.LspEnv(LspEnv, liftResult, logInfo, access)
+import ch.fhnw.lsp.utils.Globals(readGlobals, findGlobal, compileFile)
+import ch.fhnw.lsp.env.LspState(report, asServerResult, ServerError(Error), ServerResult)
+import ch.fhnw.lsp.messages.GeneralLspTypes(Location(Location), URI(), Position(Position), Range(Range))
+import ch.fhnw.lsp.messages.textdocument.definition.DefinitionTypes(DefinitionRequestParams())
 import ch.fhnw.lsp.utils.Utils(tokenAt, note, hush)
 
 processDefinitionMessage :: DefinitionRequestParams -> LspEnv IO Location
@@ -97,7 +96,7 @@ getFile root sourceGlobal sourceSymbol m = do
 
         case lookup file m of
           Nothing -> do
-              maybeGlobal <- compileFileAndUpdateURIGlobals file
+              maybeGlobal <- compileFile file
               case maybeGlobal of 
                 Nothing -> do
                   -- if the file is not loaded as global right now, 

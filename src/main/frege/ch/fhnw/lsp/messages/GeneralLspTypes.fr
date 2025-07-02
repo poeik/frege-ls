@@ -1,8 +1,8 @@
 module ch.fhnw.lsp.messages.GeneralLspTypes where
 
-import Compiler.types.Global(Global)
-import Compiler.types.Packs(Pack)
-import Data.JSON
+import Compiler.types.Global(Global())
+import Compiler.types.Packs(Pack())
+import Data.JSON(FromJSON(fromJSON), ToJSON(toJSON), Value(Struct, Number, String), field)
 
 data TextDocument = TextDocument {
   uri :: URI
@@ -12,10 +12,13 @@ derive Show TextDocument
 data TextDocumentItem = TextDocumentItem {
   uri         :: URI
 , languageId  :: String
-, version     :: Int
+, version     :: FileVersion
 , text        :: String
 }
 derive Show TextDocumentItem
+
+data FileVersion = FileVersion Int
+derive Show FileVersion
 
 data Location = Location {
   uri   :: URI 
@@ -72,7 +75,7 @@ data URI = native java.net.URI where
     | p.raw == "" -> Left "Cannot create uri from empty package"
     | otherwise   -> (fromString . withFileScheme) $ path 
     where 
-      path = concat [r.getPath, "/", concat g.sourcePath, replaceDotWithSlash (Global.unpack g p), ".fr"]
+      path = concat [r.getPath, "/", concat g.sourcePath, replaceDotWithSlash (Global.unpack g p), ".fr"] 
       replaceDotWithSlash s = s.replace '.' '/'
   fromString      :: String -> (String | URI)
   fromString s    = ST.run
@@ -108,6 +111,10 @@ instance FromJSON TextDocument where
   fromJSON (Struct as) = do
     uri <- field "uri" as
     pure TextDocument { uri }
+  fromJSON garbage = fail ("couldn't decode TextDocument from: " ++ show garbage)
+
+instance FromJSON FileVersion where
+  fromJSON (Number version) = pure $ FileVersion (read version)
   fromJSON garbage = fail ("couldn't decode TextDocument from: " ++ show garbage)
 
 instance FromJSON TextDocumentItem where
@@ -183,3 +190,6 @@ instance ToJSON MarkupContent where
 instance ToJSON MarkupKind where
   toJSON PlainText = toJSON "plaintext"
   toJSON Markdown  = toJSON "markdown"
+
+instance ToJSON FileVersion where
+  toJSON (FileVersion version) = Number $ show version

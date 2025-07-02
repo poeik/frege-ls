@@ -16,7 +16,7 @@ data TextDocumentContentChangeEvent = TextDocumentContentChangeEvent {
 derive Show TextDocumentContentChangeEvent
 
 data VersionedTextDocumentIdentifier = VersionedTextDocumentIdentifier {
-  version :: Int
+  version :: FileVersion
 , uri     :: URI
 }
 derive Show VersionedTextDocumentIdentifier

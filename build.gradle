@@ -13,7 +13,7 @@ frege {
     release     = '3.25alpha'
     mainModule  = 'ch.fhnw.lsp.Main' // see runFrege task
     replModule  = 'ch.fhnw.lsp.Main' // see replFrege task
-    testModules = ['ch.fhnw.lsp.rpc.RpcSpec', 'ch.fhnw.lsp.messages.textdocument.didchange.DidChangeSpec']
+    testModules = ['ch.fhnw.lsp.rpc.RpcSpec', 'ch.fhnw.lsp.utils.compile.DebouncedCompileSpec']
 }
 
 sourceSets {

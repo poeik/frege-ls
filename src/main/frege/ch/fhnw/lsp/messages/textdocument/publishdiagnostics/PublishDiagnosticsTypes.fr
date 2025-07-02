@@ -2,11 +2,11 @@ module ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnosticsTy
 
 import Data.JSON(FromJSON(fromJSON), ToJSON(toJSON), Value(Struct), field, optional)
 
-import ch.fhnw.lsp.messages.GeneralLspTypes(URI, Range)
+import ch.fhnw.lsp.messages.GeneralLspTypes(URI, Range, FileVersion)
 
 data PublishDiagnosticsParams = PublishDiagnosticsParams { 
   uri         :: URI
-, version     :: Int
+, version     :: Maybe FileVersion
 , diagnostics :: [Diagnostic]
 }
 
@@ -32,10 +32,10 @@ instance ToJSON DiagnosticSeverity where
 instance ToJSON Diagnostic where
   toJSON (Diagnostic range severity message source) =
     Struct [
-      ("range",    toJSON range)
+      ("range"   , toJSON range)
     , ("severity", toJSON severity)
-    , ("message",  toJSON message)
-    , ("source"     , toJSON source)
+    , ("message" , toJSON message)
+    , ("source"  , toJSON source)
     ]
 
 instance ToJSON PublishDiagnosticsParams where

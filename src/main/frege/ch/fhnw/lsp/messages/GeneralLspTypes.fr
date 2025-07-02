@@ -68,8 +68,8 @@ data URI = native java.net.URI where
   pure native getPath  :: URI -> String
 
   withFileScheme = (++) "file://" 
-  fromGlobal   :: URI -> Global -> (String | URI)
-  fromGlobal r g = fromPackage r g g.sub.thisPack
+  fromGlobal   :: Global -> (String | URI)
+  fromGlobal global = fromString $ withFileScheme global.options.source
   fromPackage :: URI -> Global -> Pack -> (String | URI)
   fromPackage r g p 
     | p.raw == "" -> Left "Cannot create uri from empty package"

@@ -11,7 +11,7 @@ import Data.HashMap(HashMap, lookup)
 import ch.fhnw.lsp.env.LspEnv(LspEnv, liftResult, logInfo, access)
 import ch.fhnw.lsp.utils.Globals(readGlobals, findGlobal, compileFile)
 import ch.fhnw.lsp.env.LspState(report, asServerResult, ServerError(Error), ServerResult)
-import ch.fhnw.lsp.messages.GeneralLspTypes(Location(Location), URI(), Position(Position), Range(Range))
+import ch.fhnw.lsp.messages.GeneralLspTypes(Location(Location), URI(fromGlobal), Position(Position), Range(Range))
 import ch.fhnw.lsp.messages.textdocument.definition.DefinitionTypes(DefinitionRequestParams())
 import ch.fhnw.lsp.utils.Utils(tokenAt, note, hush)
 
@@ -43,7 +43,7 @@ findPosition cursorToken sourceGlobal = do
       position <- liftResult $ case sourceGlobal.sub.nsPos.lookup moduleName of 
         Nothing   -> report ("Could not find module " ++ show moduleName)
         Just pos  -> pure pos
-      file <- liftResult . asServerResult $ projectRoot.fromGlobal sourceGlobal
+      file <- liftResult . asServerResult $ fromGlobal sourceGlobal
       pure (file, position)
     resolveQName qname = do
        projectRoot          <- access _.rootPath
@@ -88,7 +88,7 @@ getFile root sourceGlobal sourceSymbol m = do
     case sourceSymbol.name of
       Local _ _ -> do 
         logInfo "The requested symbol is a local definition"
-        uri <- liftResult $ asServerResult (URI.fromGlobal r sourceGlobal)
+        uri <- liftResult $ asServerResult (URI.fromGlobal sourceGlobal)
         pure (uri, sourceSymbol)
       name -> do
         let pack = name.getpack
@@ -112,7 +112,7 @@ getFile root sourceGlobal sourceSymbol m = do
     findSymbolInDifferentGlobal g s = 
            note Error "No matching symbol found" $ g.find s.name
     findImportPos r sourceGlobal sourceSymbol = do
-           uri <- liftResult $ asServerResult (URI.fromGlobal r sourceGlobal)
+           uri <- liftResult $ asServerResult (URI.fromGlobal sourceGlobal)
            pure (uri, sourceSymbol)
     findPosition global file = do
            sym <- liftResult $ findSymbolInDifferentGlobal global sourceSymbol

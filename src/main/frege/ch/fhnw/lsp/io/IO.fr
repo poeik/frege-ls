@@ -1,5 +1,8 @@
 module ch.fhnw.lsp.io.IO where
 
+import Java.Util(Path)
+import Java.IO as JIO()
+
 import ch.fhnw.lsp.rpc.Rpc(encodeMessage, extractMessageLength)
 import ch.fhnw.lsp.messages.MessageTypes(ServerMessage)
 
@@ -28,3 +31,20 @@ readChars amt = do
   pure $ (packed . filter nonNulls . unpacked) msg
   where
     nonNulls = (/=) '\u0000'
+
+pure native fileToPath toPath :: File -> Path
+native create "java.nio.file.Files.createFile" :: Path -> IO Path throws IOException
+
+createFile :: String -> IO Bool
+createFile path = do
+    let file = JIO.File.new path
+    parentExists <- case file.getParentFile of
+      Just parent -> parent.mkdirs
+      otherwise -> pure True
+
+    if parentExists then do
+      create $ fileToPath file
+      pure True
+    else pure False
+  `catch` 
+    \(e :: IOException) -> pure False

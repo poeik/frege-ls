@@ -18,7 +18,3 @@ printWriterLog writer msg = do
   timestamp <- d.toString
   writer.println $ timestamp ++ ": " ++ msg
   writer.flush
-
-swallowLog :: Monad m => Logger m
-swallowLog _ = pure ()
-

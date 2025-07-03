@@ -2,20 +2,27 @@ module ch.fhnw.lsp.Main where
 
 import Control.monad.trans.EitherT
 import Data.JSON
+import Java.IO as JIO()
 
-import ch.fhnw.lsp.logger.Logger(swallowLog, getFileLogger, printWriterLog, Logger)
+import ch.fhnw.lsp.logger.Logger(getFileLogger, printWriterLog, Logger)
 import ch.fhnw.lsp.rpc.Rpc(decodeMessage)
 import ch.fhnw.lsp.messages.Message(processClientMessage)
 import ch.fhnw.lsp.messages.MessageTypes(ServerMessage, Method)
 import ch.fhnw.lsp.env.LspEnv(runLspEnv, LspEnv, liftMonad, liftEither, logInfo)
 import ch.fhnw.lsp.env.LspState(initialState, LspState, ServerError(Error))
-import ch.fhnw.lsp.io.IO(sendServerMessage, readMessage)
+import ch.fhnw.lsp.io.IO(sendServerMessage, readMessage, createFile)
+import ch.fhnw.lsp.compile.CompileOptions(defaultLogFile)
 
-main []             = startLsp swallowLog
-main (filePath : _) = do
-     logger     <- getFileLogger filePath
-     let log = printWriterLog logger
-     startLsp log
+main []             = main [defaultLogFile]
+main (logFile : _) = do
+     loggingSetup <- createFile logFile
+     if not loggingSetup then do
+       logger <- getFileLogger logFile
+       let log = printWriterLog logger
+       startLsp log
+     else do
+       JIO.stderr.println "Could not initialize log file, exiting"
+       System.exit 1
      
 startLsp :: Logger IO -> IO ()
 startLsp log = do

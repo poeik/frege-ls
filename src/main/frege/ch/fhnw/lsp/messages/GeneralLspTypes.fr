@@ -39,6 +39,7 @@ data Position = Position {
 }
 
 derive Show Position
+derive Eq Position
 
 {-
   How LSP handles its URIs: taken from the 
@@ -93,9 +94,7 @@ instance FromJSON URI where
   fromJSON garbage = fail ("couldn't decode URI from: " ++ show garbage)
 
 instance FromJSON TextDocument where
-  fromJSON (Struct as) = do
-    uri <- field "uri" as
-    pure TextDocument { uri }
+  fromJSON (Struct as) = TextDocument <$> field "uri" as
   fromJSON garbage = fail ("couldn't decode TextDocument from: " ++ show garbage)
 
 instance FromJSON FileVersion where
@@ -103,24 +102,19 @@ instance FromJSON FileVersion where
   fromJSON garbage = fail ("couldn't decode TextDocument from: " ++ show garbage)
 
 instance FromJSON TextDocumentItem where
-  fromJSON (Struct as) = do
-    uri         <- field "uri" as
-    languageId  <- field "languageId" as
-    version     <- field "version" as
-    text        <- field "text" as
-    pure TextDocumentItem { 
-      uri = uri
-    , languageId = languageId
-    , version = version
-    , text = text 
-    }
+  fromJSON (Struct as) =
+    TextDocumentItem
+      <$> field "uri" as
+      <*> field "languageId" as
+      <*> field "version" as
+      <*> field "text" as
   fromJSON garbage = fail ("couldn't decode TextDocumentItem from: " ++ show garbage)
 
 instance FromJSON Location where
-  fromJSON (Struct as) = do
-    uri   <- field "uri" as
-    range <- field "range" as
-    pure Location { uri, range }
+  fromJSON (Struct as) =
+    Location 
+      <$> field "uri" as
+      <*> field "range" as
   fromJSON garbage = fail ("couldn't decode Location from: " ++ show garbage)
 
 instance FromJSON Position where
@@ -134,10 +128,10 @@ instance FromJSON Position where
   fromJSON garbage = fail ("couldn't decode Position from: " ++ show garbage)
 
 instance FromJSON Range where
-  fromJSON (Struct as) = do
-    start <- field "start" as
-    end   <- field "end" as
-    pure Range { start, end }
+  fromJSON (Struct as) =
+    Range
+      <$> field "start" as
+      <*> field "end" as
   fromJSON garbage = fail ("couldn't decode Range from: " ++ show garbage)
 
 ------------- ToJSON instances ------------- 

@@ -17,7 +17,7 @@ processHoverRequest :: HoverRequestParams -> LspEnv IO HoverResult
 processHoverRequest params = do
   let currentUri = params.textDocument.uri
   let cursorPos  = params.position
-  logInfo $ "requested hover for: " ++ currentUri.getPath ++  " at position: " ++ show cursorPos
+  logInfo $ "requested hover for: " ++ currentUri.path ++  " at position: " ++ show cursorPos
   (documentation, range) <- hoverInformation currentUri cursorPos
   pure $ HoverResult { contents = documentation, range = range }
 

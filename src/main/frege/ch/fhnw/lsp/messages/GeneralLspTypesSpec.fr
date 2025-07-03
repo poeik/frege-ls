@@ -1,0 +1,86 @@
+module ch.fhnw.lsp.messages.GeneralLspTypesSpec where
+
+import ch.fhnw.lsp.messages.GeneralLspTypes(URI())
+import ch.fhnw.lsp.utils.Testing(failWith)
+
+import Compiler.common.CompilerOptions (standardGlobal, theClassLoader)
+import Compiler.types.Packs(Pack())
+import Data.JSON(fromJSON, toJSON, Value(String))
+import Test.QuickCheck(Property, once, morallyDubiousIOProperty, property, ==>)
+
+-- URI CTOR tests --
+
+p_UriFromScheme :: Property
+p_UriFromScheme = 
+  let
+    baseUri  = "/Users/xxx/workspaces/fregeproj/src/main/frege/ch/fhnw/mypackage/MyFregeFile.fr"
+    fileScheme = "file://"
+    uri    = URI.fromString $ fileScheme ++ baseUri
+  in
+    once $ uri.path == baseUri
+
+p_RelativeUri :: Property
+p_RelativeUri = 
+  let
+    baseUri  = "Users/xxx/workspaces/fregeproj/src/main/frege/ch/fhnw/mypackage/MyFregeFile.fr"
+    uri    = URI.fromString $ baseUri
+  in
+    once $ uri.path == "/" ++ baseUri
+
+p_fromGlobal :: Property
+p_fromGlobal = morallyDubiousIOProperty $ do
+    stdGlobal  <- standardGlobal
+    let global = stdGlobal.{options <- _.{ source = "/helloworld" }}
+
+    let expected = "/helloworld"
+    let actual   = URI.fromGlobal global
+    pure  . once $ expected == actual.path
+
+p_UriFromValidPackage :: Property
+p_UriFromValidPackage = morallyDubiousIOProperty $ do
+    stdGlobal  <- standardGlobal
+    let root = URI.fromString "/path/to"
+    let global = stdGlobal.{options <- _.{ sourcePath = ["src/main/frege/"] }}
+    let pack = Pack.new "my.path.to.FregeModule"
+
+    let expected = "/path/to/src/main/frege/my/path/to/FregeModule.fr"
+
+    pure $ 
+      case URI.fromPackage root global pack of
+        (Right actual) -> once $ expected == actual.path
+        (Left err)     -> failWith err 
+
+p_UriFromInvalidPackage :: Property
+p_UriFromInvalidPackage = morallyDubiousIOProperty $ do
+    global  <- standardGlobal
+    let root = URI.fromString "/path/to/src"
+    let pack = Pack.new ""
+
+    pure $ 
+      case URI.fromPackage root global pack of
+        (Right actual) -> failWith "Could create URI from invalid package!"
+        (Left err)     -> once $ err == "Cannot create URI from empty package"
+
+-- URI fromJSON/toJSON instances
+
+p_UriFromJSON :: Property
+p_UriFromJSON = 
+  let
+     path = "/my/path/to/file.fr"
+     fileScheme = "file://"
+     parsed  = fromJSON $ String (fileScheme ++ path) :: Either String URI
+  in
+    case parsed of
+      Right uri -> once $ uri.path == path
+      Left err -> failWith err
+
+p_UriFromJSONToJSON :: Property
+p_UriFromJSONToJSON = property $ \path ->
+  path != "" && !(path.startsWith "/") ==> 
+      let 
+        uri     = URI.fromString path
+        parsed  = (fromJSON . toJSON $ uri) :: Either String URI
+      in
+        case parsed of
+          Right uri -> uri.path == "/" ++ path
+          Left err -> False

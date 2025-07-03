@@ -18,41 +18,38 @@ compileFile :: URI -> LspEnv IO (Maybe Global)
 compileFile openedUri = do
     exists <- fileExists openedUri
     if exists then do
-      logInfo $ "Compiling: " ++ openedUri.getPath
+      logInfo $ "Compiling: " ++ openedUri.path
       pglobal    <- access _.projectGlobal >>= hushMaybe
-      newGlobals <- liftIO $ compileMakeLSP openedUri.getPath pglobal
+      newGlobals <- liftIO $ compileMakeLSP openedUri.path pglobal
       updateURIGlobals newGlobals openedUri
     else do
-      logInfo $ "File \"" ++ openedUri.getPath ++ "\" does not exist"
+      logInfo $ "File \"" ++ openedUri.path ++ "\" does not exist"
       pure Nothing
     where 
       fileExists :: URI -> LspEnv IO Bool
       fileExists u = liftIO file.exists 
         where 
-          file = File.new u.getPath
+          file = File.new u.path
 
 compileInMemory :: URI -> String -> LspEnv IO (Maybe Global)
 compileInMemory openedUri sourceCode = do
     pglobal    <- access _.projectGlobal >>= hushMaybe
-    newGlobals <- liftIO $ compileMakeLSPInMemory openedUri.getPath sourceCode pglobal
+    newGlobals <- liftIO $ compileMakeLSPInMemory openedUri.path sourceCode pglobal
     updateURIGlobals newGlobals openedUri
 
 updateURIGlobals :: [Global] -> URI -> LspEnv IO (Maybe Global)
 updateURIGlobals newGlobals openedUri = do
-    logInfo $ "Adding " ++ show newGlobals.length ++ " globals: " ++ ((map (\g -> g.sub.thisPack.raw) newGlobals)) `joinedBy` ", "
+    logInfo $ "Adding " ++ show newGlobals.length ++ " globals: " ++ (show (map (URI.fromGlobal) newGlobals))
     rootPath   <- access _.rootPath >>= liftResult
-    let kv         = map (\g -> (URI.fromGlobal g, g)) newGlobals
-    let globalsMap = fromList $ dropLefts kv
+    let kv = map (\g -> (URI.fromGlobal g, g)) newGlobals
+    let globalsMap = fromList kv
     st <- get
     liftIO $ updateGlobals globalsMap st
     updated <- readGlobals
     liftEither $ Right (lookup openedUri updated)
-  where
-    dropLefts :: [((String | URI), Global)] -> [(URI, Global)]
-    dropLefts xs = [ (uri, g) | (Right uri, g) <- xs ]
 
 findGlobal :: URI -> HashMap URI Global -> ServerResult Global
-findGlobal uri globals = note Error ("No global for " ++ show uri ++ " found") $ globals.lookup uri
+findGlobal uri globals = note Error ("No global for " ++ show uri ++ " in (" ++ (show . keys) globals ++") found") $ globals.lookup uri
 
 findOrLoadGlobal :: URI -> LspEnv IO (Maybe Global)
 findOrLoadGlobal uri = do

@@ -15,9 +15,9 @@ publishDiagnosticsNotification :: URI -> Maybe FileVersion -> LspEnv IO ()
 publishDiagnosticsNotification uri version = do
   maybeGlobal <- findOrLoadGlobal uri
   case maybeGlobal of
-    Nothing     -> logInfo $ "No global found for " ++ show uri.getPath
+    Nothing     -> logInfo $ "No global found for " ++ show uri.path
     Just global -> do 
-      logInfo $ "publishing " ++ (show . length) global.sub.messages ++ " diagnostics for " ++ show uri.getPath
+      logInfo $ "publishing " ++ (show . length) global.sub.messages ++ " diagnostics for " ++ show uri.path
       params <- liftResult $ diagnosticParams uri version global.sub.messages
       liftMonad $ sendServerMessage (PublishDiagnosticsNotification params)
 

@@ -5,7 +5,7 @@ plugins {
 }
 
 dependencies {
-    implementation files('lib/frege3.25.84.jar')
+    implementation files(compileFrege.fregeCompilerJar)
 }
 
 frege {
@@ -15,6 +15,13 @@ frege {
     replModule  = 'ch.fhnw.lsp.Main' // see replFrege task
     testModules = ['ch.fhnw.lsp.rpc.RpcSpec', 'ch.fhnw.lsp.utils.compile.DebouncedCompileSpec']
 }
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+}
+
 
 sourceSets {
     main {

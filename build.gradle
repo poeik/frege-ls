@@ -31,7 +31,7 @@ sourceSets {
     main {
         java {
             srcDirs += "$buildDir/classes/frege/main"
-            // this allows us to compile all java sources in the frege dir
+            // this allows us to compile all java sources in the Frege dir
             srcDirs += "src/main/frege"
         }
     }
@@ -40,6 +40,10 @@ sourceSets {
 application {
     mainClass = 'ch.fhnw.lsp.Main'
 }
+
+
+// run tests when compiling Frege code
+compileFrege.dependsOn testFrege
 
 // Make sure the generated sources are available before compiling Java
 compileJava.dependsOn compileFrege

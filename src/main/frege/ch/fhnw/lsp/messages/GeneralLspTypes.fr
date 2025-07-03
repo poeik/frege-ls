@@ -58,36 +58,24 @@ data URISyntaxException = native java.net.URISyntaxException where
 
 derive Exceptional URISyntaxException 
 
-native uriFromString "new java.net.URI" :: String -> STMutable s URI throws URISyntaxException
-
-
-data URI = native java.net.URI where  
-  pure native toString :: URI -> String
-  pure native equals   :: URI -> URI -> Bool
-  pure native hashCode :: URI -> Int
-  pure native getPath  :: URI -> String
-
-  withFileScheme = (++) "file://" 
-  fromGlobal   :: Global -> (String | URI)
-  fromGlobal global = fromString $ withFileScheme global.options.source
+data URI = private URI { path :: String } where  
+  fromGlobal   :: Global -> URI
+  fromGlobal global = fromString global.options.source
   fromPackage :: URI -> Global -> Pack -> (String | URI)
-  fromPackage r g p 
-    | p.raw == "" -> Left "Cannot create uri from empty package"
-    | otherwise   -> (fromString . withFileScheme) $ path 
+  fromPackage (URI root) g p 
+    | p.raw == "" -> Left "Cannot create URI from empty package"
+    | otherwise   -> pure $ fromString path 
     where 
-      path = concat [r.getPath, "/", concat g.sourcePath, replaceDotWithSlash (Global.unpack g p), ".fr"] 
+      path = concat [root, "/", head g.sourcePath, replaceDotWithSlash (Global.unpack g p), ".fr"] 
       replaceDotWithSlash s = s.replace '.' '/'
-  fromString      :: String -> (String | URI)
-  fromString s    = ST.run
-    (do
-      uri <- fmap (readonly id) (uriFromString s)
-      x   <- uri
-      pure (Right x)
-    `catch`
-      \(e :: URISyntaxException) -> pure $ Left e.getMessage)
+  fromString      :: String -> URI
+  fromString path  = case unpacked path of
+        'f':'i':'l':'e':':':'/':'/': uri -> fromString $ packed uri
+        '/': _ -> URI $ path
+        uri    -> URI . packed $ '/' : uri
 
-instance Show URI where show = URI.toString
-instance Eq   URI where (==) = URI.equals
+derive Show URI 
+derive Eq URI
 
 data MarkupContent = MarkupContent {
   kind  :: MarkupKind
@@ -101,10 +89,7 @@ derive Show MarkupKind
 -------------  FromJSON instances ------------- 
 
 instance FromJSON URI where
-  fromJSON (String s) = 
-    case URI.fromString s of
-      Right uri -> pure uri
-      Left err  -> fail err
+  fromJSON (String uri) = pure $ URI.fromString uri
   fromJSON garbage = fail ("couldn't decode URI from: " ++ show garbage)
 
 instance FromJSON TextDocument where
@@ -158,7 +143,9 @@ instance FromJSON Range where
 ------------- ToJSON instances ------------- 
 
 instance ToJSON URI where
-  toJSON = String . show
+  toJSON uri = String $ withFileScheme uri.path
+    where 
+      withFileScheme = (++) "file://" 
 
 instance ToJSON Location where
   toJSON Location { uri, range } =

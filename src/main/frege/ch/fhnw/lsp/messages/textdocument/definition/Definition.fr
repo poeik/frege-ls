@@ -24,7 +24,7 @@ processDefinitionMessage params = do
   cursorToken   <- liftResult $ findToken  cursorPos sourceGlobal 
   logInfo $ "Token under cursor: " ++ show cursorToken
   (file, pos)   <- findPosition cursorToken sourceGlobal
-  logInfo $ "Symbol in file: \"" ++ file.getPath ++ "\" at position \"" ++ show pos ++ "\"."
+  logInfo $ "Symbol in file: \"" ++ file.path ++ "\" at position \"" ++ show pos ++ "\"."
   range         <- liftResult $ posToRange pos cursorToken
   pure Location { uri = file, range = range }
 
@@ -43,8 +43,8 @@ findPosition cursorToken sourceGlobal = do
       position <- liftResult $ case sourceGlobal.sub.nsPos.lookup moduleName of 
         Nothing   -> report ("Could not find module " ++ show moduleName)
         Just pos  -> pure pos
-      file <- liftResult . asServerResult $ fromGlobal sourceGlobal
-      pure (file, position)
+      let fileUri = fromGlobal sourceGlobal
+      pure (fileUri, position)
     resolveQName qname = do
        projectRoot          <- access _.rootPath
        globals              <- readGlobals
@@ -88,8 +88,8 @@ getFile root sourceGlobal sourceSymbol m = do
     case sourceSymbol.name of
       Local _ _ -> do 
         logInfo "The requested symbol is a local definition"
-        uri <- liftResult $ asServerResult (URI.fromGlobal sourceGlobal)
-        pure (uri, sourceSymbol)
+        let fileUri = URI.fromGlobal sourceGlobal
+        pure (fileUri, sourceSymbol)
       name -> do
         let pack = name.getpack
         file <- liftResult $ asServerResult (URI.fromPackage r sourceGlobal pack)
@@ -110,11 +110,11 @@ getFile root sourceGlobal sourceSymbol m = do
   where
     findSymbolInDifferentGlobal :: Global -> Symbol -> ServerResult Symbol
     findSymbolInDifferentGlobal g s = 
-           note Error "No matching symbol found" $ g.find s.name
+        note Error "No matching symbol found" $ g.find s.name
     findImportPos r sourceGlobal sourceSymbol = do
-           uri <- liftResult $ asServerResult (URI.fromGlobal sourceGlobal)
-           pure (uri, sourceSymbol)
+        let fileUri = URI.fromGlobal sourceGlobal
+        pure (fileUri, sourceSymbol)
     findPosition global file = do
-           sym <- liftResult $ findSymbolInDifferentGlobal global sourceSymbol
-           logInfo $ "loaded as global: " ++ show file
-           pure (file, sym)
+        sym <- liftResult $ findSymbolInDifferentGlobal global sourceSymbol
+        logInfo $ "loaded as global: " ++ show file
+        pure (file, sym)

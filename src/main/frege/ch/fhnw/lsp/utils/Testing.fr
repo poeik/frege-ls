@@ -1,0 +1,8 @@
+module ch.fhnw.lsp.utils.Testing where
+
+import Test.QuickCheck(Property, once, morallyDubiousIOProperty)
+
+failWith :: String -> Property
+failWith msg = morallyDubiousIOProperty do
+  println $ "TEST failed: " ++ msg
+  pure . once $ False

@@ -9,7 +9,7 @@ import ch.fhnw.lsp.utils.compile.DebouncedCompile(compileDebounced)
 
 processDidOpenNotification :: DidOpenRequestParams -> LspEnv IO ()
 processDidOpenNotification params = do
-  logInfo $ "opened: " ++ show params.textDocument.uri.getPath
+  logInfo $ "opened: " ++ show params.textDocument.uri.path
   compileDebounced $ do
     maybeGlobal <- compileFile params.textDocument.uri
     case maybeGlobal of 

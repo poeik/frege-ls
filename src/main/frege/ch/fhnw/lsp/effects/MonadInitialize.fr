@@ -1,27 +1,22 @@
 module ch.fhnw.lsp.effects.MonadInitialize where
 
-import Java.IO as JIO()
 import Compiler.types.Global(Options())
-
-import Control.monad.trans.MonadIO(MonadIO, liftIO)
+import Control.monad.trans.MonadIO(liftIO)
 import Control.monad.trans.MonadTrans(lift)
-import Control.monad.trans.EitherT(EitherT, left)
 import Control.monad.State(StateT())
+import Java.IO as JIO()
 
+import ch.fhnw.lsp.AppM(AppM, AppStateM)
 import ch.fhnw.lsp.compile.CompileExecutorLSP(fromOptionsLSP)
-import ch.fhnw.lsp.env.LspState(LspState())
 import ch.fhnw.lsp.messages.GeneralLspTypes(URI())
 
 class (Monad m) => MonadInitialize m where
   initializeEnvironment :: Options -> URI -> m ()
   setupCompileDir :: JIO.File -> m Bool
 
-instance (MonadIO m) => MonadInitialize (StateT LspState m) where
+instance (Monad AppStateM) => MonadInitialize AppM where
   initializeEnvironment options rootDir = do
     global  <- liftIO $ fromOptionsLSP options
-    StateT.modify (\cur -> cur.{ projectGlobal = Just global, rootPath = Right rootDir })
+    lift $ StateT.modify 
+      (\cur -> cur.{ projectGlobal = Just global, rootPath = Just rootDir })
   setupCompileDir dir = liftIO dir.mkdirs
-
-instance (MonadInitialize m) => MonadInitialize (EitherT e m) where
-  initializeEnvironment opt uri = lift $ initializeEnvironment opt uri
-  setupCompileDir = lift . setupCompileDir

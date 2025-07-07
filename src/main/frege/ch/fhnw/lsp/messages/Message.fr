@@ -37,16 +37,19 @@ import ch.fhnw.lsp.effects.MonadSendMessage(MonadSendMessage())
 import ch.fhnw.lsp.effects.MonadDebounce(MonadDebounce())
 import ch.fhnw.lsp.effects.MonadEnv(MonadEnv())
 import ch.fhnw.lsp.effects.MonadCompile(MonadCompile())
-import ch.fhnw.lsp.env.App(AppResult)
+import ch.fhnw.lsp.effects.MonadGlobals(MonadGlobals())
 
 processClientMessage :: (
-    MonadLog         m
-  , MonadSendMessage m
-  , MonadCompile     m
+    MonadCompile     m
+  , MonadDebounce    m
   , MonadEnv         m
-  , MonadSystem      m
+  , MonadFail        m
+  , MonadGlobals     m
   , MonadInitialize  m
-  ) => ClientMessage -> AppResult m (Maybe ServerMessage)
+  , MonadLog         m
+  , MonadSendMessage m
+  , MonadSystem      m
+  ) => ClientMessage -> m (Maybe ServerMessage)
 processClientMessage msg = case msg of
     (InitializeRequest id params)  -> fmap (Just . (InitializeResponse id)) (processInitializeMessage params)
     (DefinitionRequest id params)  -> fmap (Just . (DefinitionResponse id)) (processDefinitionMessage params)

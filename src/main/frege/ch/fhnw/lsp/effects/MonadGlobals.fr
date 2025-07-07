@@ -1,48 +1,41 @@
 module ch.fhnw.lsp.effects.MonadGlobals where
 
 import Compiler.types.Global(Global())
+import Control.concurrent.STM(atomically, TVar())
 import Control.monad.State(StateT())
 import Control.monad.trans.MonadIO(MonadIO(liftIO))
-import Control.concurrent.STM(atomically, TVar())
-import Data.HashMap(HashMap(), union)
-import Control.monad.trans.EitherT(EitherT)
+import Control.monad.trans.EitherT(EitherT())
 import Control.monad.trans.MonadTrans(lift)
+import Data.HashMap(HashMap(), union)
 
+import ch.fhnw.lsp.AppM(AppM, AppStateM, accessM, ServerState())
 import ch.fhnw.lsp.effects.MonadEnv(MonadEnv(waitingForCompilationRef))
 import ch.fhnw.lsp.effects.MonadLog(MonadLog(logInfo))
-import ch.fhnw.lsp.env.LspState(LspState())
 import ch.fhnw.lsp.messages.GeneralLspTypes(URI())
 
 class Monad m => MonadGlobals m where
-  readGlobals        :: m (HashMap URI Global)
+  readGlobals        :: () -> m (HashMap URI Global)
   addGlobals         :: HashMap URI Global -> m ()
-  projectGlobal      :: m (Maybe Global)
+  projectGlobal      :: () -> m (Maybe Global)
   waitForCompilation :: Long -> m ()
 
-instance (MonadGlobals m) => MonadGlobals (EitherT e m) where
-  projectGlobal      = lift projectGlobal
-  readGlobals        = lift readGlobals
-  addGlobals         = lift . addGlobals
-  waitForCompilation = lift . waitForCompilation
-
-instance (MonadIO m) => MonadGlobals (StateT LspState m) where
-  projectGlobal = fmap LspState.projectGlobal StateT.get
-  readGlobals = do
-    globals <- fmap (_.globals) StateT.get
+instance (Monad AppStateM) => MonadGlobals AppM where
+  projectGlobal _ = accessM _.projectGlobal
+  readGlobals _ = do
+    globals <- accessM _.globals
     liftIO $ atomically (TVar.read globals)
   addGlobals newGlobals = do
-    globals <- fmap (_.globals) StateT.get
+    globals <- lift $ fmap (_.globals) StateT.get
     liftIO $ atomically do
       current <- TVar.read globals
       let result = union newGlobals current
       globals.write result
   {--
-    This function reads the `watingForCompilation` state from `LspState`. If this
+    This function reads the `watingForCompilation` state from `ServerState`. If this
     TVar is set to `true` it blocks the current thread by sleeping for a short 
     period. Specify a suitable `maxWaitTime` which is the max amount of time 
     following computations in the monadic sequencing may be deferred.
   -}
-  waitForCompilation :: (MonadIO m) => Long -> StateT LspState m ()
   waitForCompilation maxWaitTime
     | maxWaitTime < waitMsPerTry -> do 
         logInfo $ "Waited for " ++ "ms for compilation to complete, giving up."
@@ -56,4 +49,4 @@ instance (MonadIO m) => MonadGlobals (StateT LspState m) where
         else pure ()
     where
       waitMsPerTry = 100
-      where isWaiting = waitingForCompilationRef >>= liftIO . atomically . TVar.read 
+      isWaiting = waitingForCompilationRef () >>= liftIO . atomically . TVar.read 

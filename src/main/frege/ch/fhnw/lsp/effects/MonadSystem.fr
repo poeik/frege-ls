@@ -1,15 +1,12 @@
 module ch.fhnw.lsp.effects.MonadSystem where
 
-import Control.monad.State(StateT())
 import Control.monad.trans.MonadIO(MonadIO(liftIO))
-import Control.monad.trans.MonadTrans(lift)
 import Control.monad.trans.EitherT(EitherT())
 
+import ch.fhnw.lsp.AppM(AppM, AppStateM)
+
 class Monad m => MonadSystem m where
-  systemExit :: m ()
+  systemExit :: () -> m ()
 
-instance (MonadIO m) => MonadSystem (StateT s m) where
-  systemExit = liftIO $ System.exit 0
-
-instance (MonadSystem m) => MonadSystem (EitherT e m) where
-  systemExit = lift systemExit
+instance (Monad AppStateM) => MonadSystem AppM where
+  systemExit _ = liftIO $ System.exit 0

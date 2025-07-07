@@ -1,13 +1,11 @@
 module ch.fhnw.lsp.Main where
 
-import Control.monad.trans.EitherT()
-import Control.monad.State(StateT(), State(), runStateT, promote)
+import Control.monad.trans.EitherT(left)
 import Data.JSON
 import Java.IO as JIO()
 
 import ch.fhnw.lsp.compile.CompileOptions(defaultLogFile)
-import ch.fhnw.lsp.env.App(AppResult, runApp, liftToApp)
-import ch.fhnw.lsp.env.LspState(asServerResult, initialState, LspState(), ServerError(Error))
+import ch.fhnw.lsp.AppM(AppM, runAppM, ServerState(), initialState, ServerError(Error))
 import ch.fhnw.lsp.io.IO(sendServerMessage, readMessage, createFile)
 import ch.fhnw.lsp.messages.Message(processClientMessage)
 import ch.fhnw.lsp.messages.MessageTypes(ServerMessage, Method)
@@ -38,20 +36,24 @@ startLsp log = do
       eof :: Logger IO -> EOFException -> IO ()
       eof log e = log $ "an error occurred" ++ e.getMessage
 
-mainLoop :: LspState -> (String -> IO ()) -> IO ()
+mainLoop :: ServerState -> (String -> IO ()) -> IO ()
 mainLoop st logger = do 
   (length, newMessage) <- readMessage
   (Method method) <-  parseJSON newMessage
   logger ("Received \"" ++ method ++ "\"-message with length: " ++ show length)
-  (result, st) <- runApp st $ handleClientMessage newMessage
+  (result, st) <- runAppM st $ handleClientMessage newMessage
   case result of 
     Left  (Error err) -> logger $ "An error occured: " ++ err
     Right (Just msg) -> sendServerMessage msg
     otherwise        -> pure ()
   mainLoop st logger
 
-handleClientMessage :: String -> AppResult (StateT LspState IO) (Maybe ServerMessage)
+handleClientMessage :: String -> AppM (Maybe ServerMessage)
 handleClientMessage newMessage = do
-  request         <- liftToApp . asServerResult . decodeMessage  $ newMessage
+  request         <- liftToApp . decodeMessage  $ newMessage
   maybeResponse   <- processClientMessage request
   pure maybeResponse
+    where 
+      liftToApp :: (String | a) -> AppM a
+      liftToApp (Right a)  = pure a
+      liftToApp (Left err) = left . Error $ err

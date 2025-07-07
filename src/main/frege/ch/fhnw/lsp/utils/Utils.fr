@@ -5,27 +5,24 @@ import Compiler.types.Tokens(Token())
 import Data.HashMap(HashMap(), keys)
 import Data.List(find)
 
-import ch.fhnw.lsp.env.LspState(ServerResult, ServerError(Error))
 import ch.fhnw.lsp.messages.GeneralLspTypes(Position(), URI())
 
 hush :: Either e a -> Maybe a
 hush (Right a) = Just a
 hush (Left _)  = Nothing
 
-note :: (e -> e') -> e ->  Maybe a -> Either e' a
-note _ _ (Just a) = Right a
-note f e Nothing  = Left $ f e
+note :: MonadFail m => String -> Maybe a -> m a
+note _ (Just a) = pure a
+note e Nothing  = fail e
 
-debug :: Show c => String -> c -> (a -> b) -> (a -> b)
-debug lbl str f = 
-  if traceLn (lbl ++ ": " ++ show str) 
-    then f 
-    else undefined
+asFail :: (MonadFail m) => Either String a -> m a
+asFail (Right a) = pure a
+asFail (Left e) = fail e
 
-tokenAt:: Position -> Global -> ServerResult Token
+tokenAt :: MonadFail m => Position -> Global -> m Token
 tokenAt position global =
   let tokens = global.sub.toks.toList in
-  note Error ("No token found at position" ++ show position) $ find findTokenAt tokens 
+  note ("No token found at position" ++ show position) $ find findTokenAt tokens 
   where
     findTokenAt :: Token -> Bool
     findTokenAt t =
@@ -37,14 +34,7 @@ joinedBy :: [String] -> String -> String
 joinedBy [] _ = ""
 joinedBy (a:as) c = a ++ c ++ as `joinedBy` c
 
-
-findGlobal :: URI -> HashMap URI Global -> ServerResult Global
-findGlobal uri globals = note Error msg $ globals.lookup uri
+findGlobal :: (MonadFail m) => URI -> HashMap URI Global -> m Global
+findGlobal uri globals = note msg $ globals.lookup uri
   where 
-    msg = (
-      "No global for " 
-      ++ show uri 
-      ++ " in (" ++ (show . keys) globals 
-      ++") found"
-      )
-
+    msg = "No global for " ++ show uri ++ " in (" ++ (show . keys) globals ++") found"

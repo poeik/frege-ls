@@ -4,26 +4,26 @@ import ch.fhnw.lsp.messages.GeneralLspTypes(URI())
 import ch.fhnw.lsp.messages.textdocument.didopen.DidOpenTypes(DidOpenRequestParams())
 import ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnostics(publishDiagnosticsNotification)
 
-import ch.fhnw.lsp.env.App(AppResult)
 import ch.fhnw.lsp.effects.MonadEnv(MonadEnv())
 import ch.fhnw.lsp.effects.MonadLog(MonadLog(logInfo))
 import ch.fhnw.lsp.effects.MonadSendMessage(MonadSendMessage())
 import ch.fhnw.lsp.effects.MonadCompile(MonadCompile(compileFile))
--- import ch.fhnw.lsp.effects.MonadDebounce(MonadDebounce(compileDebounced))
--- import ch.fhnw.lsp.effects.MonadGlobals(MonadGlobals(waitForCompilation, readGlobals))
+import ch.fhnw.lsp.effects.MonadDebounce(MonadDebounce(compileDebounced))
+import ch.fhnw.lsp.effects.MonadGlobals(MonadGlobals())
 
 processDidOpenNotification :: 
   (
-    MonadLog         m
-  , MonadSendMessage m
-  , MonadCompile     m
+    MonadCompile     m
+  , MonadDebounce    m
   , MonadEnv         m
-  ) => DidOpenRequestParams -> AppResult m ()
+  , MonadFail        m
+  , MonadGlobals     m
+  , MonadLog         m
+  , MonadSendMessage m
+  ) => DidOpenRequestParams -> m ()
 processDidOpenNotification params = do
   logInfo $ "opened: " ++ show params.textDocument.uri.path
-  -- TODO: compileDebounced right now still depends on MonadIO...
-  -- compileDebounced $ do
-  do 
+  compileDebounced $ do
     maybeGlobal <- compileFile params.textDocument.uri
     case maybeGlobal of 
       Just g  -> publishDiagnosticsNotification params.textDocument.uri (Just params.textDocument.version)

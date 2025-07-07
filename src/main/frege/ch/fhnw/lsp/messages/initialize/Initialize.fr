@@ -6,21 +6,20 @@ import Java.IO as JIO()
 import ch.fhnw.lsp.compile.CompileOptions(standardCompileOptions)
 import ch.fhnw.lsp.effects.MonadLog(MonadLog(logInfo))
 import ch.fhnw.lsp.effects.MonadInitialize(MonadInitialize(initializeEnvironment, setupCompileDir))
-import ch.fhnw.lsp.env.LspState(report, ServerResult)
-import ch.fhnw.lsp.env.App(AppResult, liftToApp)
 import ch.fhnw.lsp.messages.initialize.InitializeTypes
 import ch.fhnw.lsp.messages.GeneralLspTypes(URI())
 
 processInitializeMessage :: 
   (
-    MonadLog        m
+    MonadFail       m
+  , MonadLog        m
   , MonadInitialize m
-  ) => InitializeRequestParams -> AppResult m InitializeResult
+  ) => InitializeRequestParams -> m InitializeResult
 processInitializeMessage (init@(InitializeRequestParams _ _ _ _)) = do
   logInfo $ clientInfosLog init
   let opt = standardCompileOptions
   setupCompileDir . compiledir $ opt
-  rootDir <- liftToApp $ readRootDir init.workspaceFolders
+  rootDir <- readRootDir init.workspaceFolders
   initializeEnvironment opt rootDir
   pure $ InitializeResult capabilities serverInfos
   where
@@ -37,10 +36,10 @@ clientInfosLog (InitializeRequestParams pid client workspaceFolders rootUri) = l
   in
     "Connected" ++ clientInfos ++ root ++ ", workspace folders: " ++ folders
 
-readRootDir :: Maybe [WorkspaceFolder] -> ServerResult URI
-readRootDir (Just (_:_:_)) = report "The Frege language server does not support multi root projects"
-readRootDir (Just (r:[]))  = Right r.uri
-readRootDir _              = report "Please specify a root directory"
+readRootDir :: (MonadFail m) => Maybe [WorkspaceFolder] -> m URI
+readRootDir (Just (_:_:_)) = fail "The Frege language server does not support multi root projects"
+readRootDir (Just (r:[]))  = pure r.uri
+readRootDir _              = fail "Please specify a root directory"
 
 serverInfos :: Maybe ServerInfo
 serverInfos = Just $ 

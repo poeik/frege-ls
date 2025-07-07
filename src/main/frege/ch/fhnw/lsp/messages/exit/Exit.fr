@@ -1,14 +1,13 @@
 module ch.fhnw.lsp.messages.exit.Exit where
 
-import ch.fhnw.lsp.env.App(AppResult)
 import ch.fhnw.lsp.effects.MonadLog(MonadLog(logInfo))
 import ch.fhnw.lsp.effects.MonadSystem(MonadSystem(systemExit))
 
 processExitNotification :: (
     MonadLog m
   , MonadSystem m
-  ) => AppResult m ()
+  ) => m ()
 processExitNotification = do 
     logInfo "Shutting down Frege LSP"
-    systemExit
+    systemExit ()
 

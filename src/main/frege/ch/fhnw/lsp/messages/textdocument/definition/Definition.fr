@@ -6,89 +6,92 @@ import Compiler.types.QNames(QName(Local))
 import Compiler.types.NSNames(NSName(NSX))
 import Compiler.enums.TokenID as T()
 import Compiler.types.Tokens(Token)
-import Data.HashMap(HashMap, lookup)
+import Data.HashMap(HashMap(), lookup)
 
 import ch.fhnw.lsp.effects.MonadCompile(MonadCompile(compileFile))
 import ch.fhnw.lsp.effects.MonadEnv(MonadEnv(projectRoot))
 import ch.fhnw.lsp.effects.MonadGlobals(MonadGlobals(readGlobals))
 import ch.fhnw.lsp.effects.MonadLog(MonadLog(logInfo))
 import ch.fhnw.lsp.effects.MonadSendMessage(MonadSendMessage())
-import ch.fhnw.lsp.env.App(AppResult, liftToApp)
-import ch.fhnw.lsp.env.LspState(report, asServerResult, ServerError(Error), ServerResult)
 import ch.fhnw.lsp.messages.GeneralLspTypes(Location(Location), URI(fromGlobal), Position(Position), Range(Range))
 import ch.fhnw.lsp.messages.textdocument.definition.DefinitionTypes(DefinitionRequestParams())
-import ch.fhnw.lsp.utils.Utils(tokenAt, note, hush, findGlobal)
+import ch.fhnw.lsp.utils.Utils(tokenAt, note, hush, asFail, findGlobal)
 
 processDefinitionMessage :: (
-    MonadLog         m, 
-    MonadSendMessage m, 
-    MonadGlobals     m, 
-    MonadEnv         m, 
     MonadCompile     m
-  ) => DefinitionRequestParams -> AppResult m Location
+  , MonadEnv         m
+  , MonadFail        m
+  , MonadGlobals     m
+  , MonadLog         m
+  , MonadSendMessage m
+  ) => DefinitionRequestParams -> m Location
 processDefinitionMessage params = do
   let currentUri = params.textDocument.uri
   let cursorPos  = params.position
-  globalsMap    <- readGlobals
-  sourceGlobal  <- liftToApp $ findGlobal currentUri globalsMap
-  cursorToken   <- liftToApp $ findToken  cursorPos sourceGlobal 
+  globalsMap    <- readGlobals ()
+  sourceGlobal  <- findGlobal currentUri globalsMap
+  cursorToken   <- findToken  cursorPos sourceGlobal 
   logInfo $ "Token under cursor: " ++ show cursorToken
   (file, pos)   <- findPosition cursorToken sourceGlobal
   logInfo $ "Symbol in file: \"" ++ file.path ++ "\" at position \"" ++ show pos ++ "\"."
-  range         <- liftToApp $ posToRange pos cursorToken
+  range         <- posToRange pos cursorToken
   pure Location { uri = file, range = range }
 
 findPosition :: (
-    MonadEnv     m, 
-    MonadCompile m, 
-    MonadLog     m, 
-    MonadGlobals m
-  ) => Token -> Global -> AppResult m (URI, P.Position)
+    MonadCompile m
+  , MonadEnv     m
+  , MonadFail    m
+  , MonadGlobals m
+  , MonadLog     m
+  ) => Token -> Global -> m (URI, P.Position)
 findPosition cursorToken sourceGlobal = do 
   case sourceGlobal.resolved cursorToken of
-    Nothing            -> liftToApp $ report ("Could not find a position for the given token: " ++ show cursorToken)
+    Nothing            -> fail ("Could not find a position for the given token: " ++ show cursorToken)
     Just (Left ())     -> resolveNamespace cursorToken sourceGlobal -- left means it is a namespace
     Just (Right qname) -> resolveQName qname sourceGlobal
 
 resolveNamespace :: (
-    MonadGlobals m'
-  ) => Token -> Global -> AppResult m' (URI,P.Position)
+    MonadFail    m
+  , MonadGlobals m
+  ) => Token -> Global -> m (URI,P.Position)
 resolveNamespace cursorToken sourceGlobal = do
-  globals   <- readGlobals
+  globals   <- readGlobals ()
   let moduleName = NSX cursorToken.value
-  position <- liftToApp $ case sourceGlobal.sub.nsPos.lookup moduleName of 
-    Nothing   -> report ("Could not find module " ++ show moduleName)
+  position <- case sourceGlobal.sub.nsPos.lookup moduleName of 
+    Nothing   -> fail ("Could not find module " ++ show moduleName)
     Just pos  -> pure pos
   let fileUri = fromGlobal sourceGlobal
   pure (fileUri, position)
 
 resolveQName :: (
-    MonadLog     m', 
-    MonadEnv     m', 
-    MonadCompile m'
-  ) => QName -> Global -> AppResult m' (URI, P.Position)
+    MonadCompile m
+  , MonadEnv     m 
+  , MonadFail    m
+  , MonadGlobals m
+  , MonadLog     m 
+  ) => QName -> Global -> m (URI, P.Position)
 resolveQName qname sourceGlobal = do
-   globals              <- readGlobals
-   sourceSymbol         <- liftToApp $ note Error "No matching symbol for qname found" $ sourceGlobal.find qname
+   globals              <- readGlobals ()
+   sourceSymbol         <- note "No matching symbol for qname found" $ sourceGlobal.find qname
    (file, targetSymbol) <- getFile sourceGlobal sourceSymbol globals
    pure (file, targetSymbol.pos)
 
-findToken :: Position -> Global -> ServerResult Token
+findToken :: MonadFail m => Position -> Global -> m Token
 findToken cursorPos global = do 
     token  <- tokenAt cursorPos global
     case token.tokid of 
       id | id == T.VARID || id == T.CONID || id == T.QUALIFIER || id == T.SOMEOP -> pure token
-      t -> report $ "Token under cursor (" ++ show t ++ ") is not valid."
+      t -> fail $ "Token under cursor (" ++ show t ++ ") is not valid."
 
-findSymbol :: Token -> Global -> ServerResult Symbol
+findSymbol :: MonadFail m => Token -> Global -> m Symbol
 findSymbol token global = findSymbol'
    where 
      findSymbol' = do
-       qname  <- note Error "No matching qname found"  $ global.resolved token >>= hush
-       sym    <- note Error "No matching symbol found" $ global.find qname
+       qname  <- note "No matching qname found"  $ global.resolved token >>= hush
+       sym    <- note "No matching symbol found" $ global.find qname
        pure sym
 
-posToRange :: P.Position -> Token -> ServerResult Range
+posToRange :: MonadFail m => P.Position -> Token -> m Range
 posToRange pos token = do
   let result = Range {
     start = Position { line = first.line, character = first.col }
@@ -96,7 +99,7 @@ posToRange pos token = do
   }
   -- definition requests for prelude functions give an illegal source position
   if result.start.line < 1 || result.start.character <= 0 then
-    report "Received illegal source position for this token"
+    fail "Received illegal source position for this token"
   else pure result
   where 
     first = pos.first
@@ -104,12 +107,13 @@ posToRange pos token = do
     len   = length token.value
 
 getFile :: (
-    MonadEnv     m, 
-    MonadCompile m, 
-    MonadLog     m
-  ) => Global -> Symbol -> HashMap URI Global -> AppResult m (URI, Symbol)
+    MonadCompile m
+  , MonadEnv     m
+  , MonadFail    m
+  , MonadLog     m
+  ) => Global -> Symbol -> HashMap URI Global -> m (URI, Symbol)
 getFile sourceGlobal sourceSymbol m = do
-    r <- projectRoot >>= liftToApp
+    r <- projectRoot () >>= note "Illegal state: Project global not set."
     case sourceSymbol.name of
       Local _ _ -> do 
         logInfo "The requested symbol is a local definition"
@@ -118,7 +122,7 @@ getFile sourceGlobal sourceSymbol m = do
         undefined
       name -> do
         let pack = name.getpack
-        file <- liftToApp $ asServerResult (URI.fromPackage r sourceGlobal pack)
+        file <- asFail (URI.fromPackage r sourceGlobal pack)
 
         case lookup file m of
           Nothing -> do 
@@ -129,18 +133,16 @@ getFile sourceGlobal sourceSymbol m = do
                   -- it is either an external package or a definition part of the prelude 
                   -- in this case we just jump to the line of the import
                   logInfo $ "no global found for " ++ show file
-                  findImportPos r sourceGlobal sourceSymbol
+                  pure $ findImportPos r sourceGlobal sourceSymbol
                 Just global ->
                   findPosition global file
           Just global -> findPosition global file
   where
-    findSymbolInDifferentGlobal :: Global -> Symbol -> ServerResult Symbol
     findSymbolInDifferentGlobal g s = 
-        note Error "No matching symbol found" $ g.find s.name
-    findImportPos r sourceGlobal sourceSymbol = do
-        let fileUri = URI.fromGlobal sourceGlobal
-        pure (fileUri, sourceSymbol)
+        note "No matching symbol found" $ g.find s.name
+    findImportPos r sourceGlobal sourceSymbol = (fileUri, sourceSymbol)
+        where fileUri = URI.fromGlobal sourceGlobal
     findPosition global file = do
-        sym <- liftToApp $ findSymbolInDifferentGlobal global sourceSymbol
+        sym <- findSymbolInDifferentGlobal global sourceSymbol
         logInfo $ "loaded as global: " ++ show file
         pure (file, sym)

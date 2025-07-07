@@ -1,4 +1,4 @@
-package ch.fhnw.lsp.utils.compile;
+package ch.fhnw.lsp.effects;
 
 import java.util.concurrent.*;
 

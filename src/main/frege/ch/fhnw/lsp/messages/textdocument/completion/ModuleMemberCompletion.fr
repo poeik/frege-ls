@@ -5,19 +5,20 @@ import Compiler.types.NSNames(NSX)
 import Compiler.types.SourceDefinitions(funbinding)
 import Compiler.types.Tokens(Token, KeyTk)
 
-import ch.fhnw.lsp.env.App(AppResult, liftToApp)
-import ch.fhnw.lsp.env.LspState(report, asServerResult)
 import ch.fhnw.lsp.effects.MonadCompile(MonadCompile(compileFile))
 import ch.fhnw.lsp.effects.MonadEnv(MonadEnv(projectRoot))
 import ch.fhnw.lsp.effects.MonadGlobals(MonadGlobals(readGlobals))
 import ch.fhnw.lsp.messages.GeneralLspTypes(URI())
 import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionItem(CompletionItem), CompletionItemKind(Function))
 import ch.fhnw.lsp.utils.Documentation(documentSymbol)
+import ch.fhnw.lsp.utils.Utils(note, asFail)
 
 findModuleMembers :: (
     MonadCompile m
   , MonadEnv     m
-  ) => Token -> Global -> AppResult m [CompletionItem]
+  , MonadFail    m
+  , MonadGlobals m
+  ) => Token -> Global -> m [CompletionItem]
 findModuleMembers token sourceGlobal = do
   target <- findGlobalForModule token.value sourceGlobal
   pure $ case target of
@@ -43,11 +44,12 @@ symbolsInModule g = map buildCompletionItem (toQNames defs)
     buildCompletionItem :: Symbol -> CompletionItem
     buildCompletionItem symbol = CompletionItem symbol.name.key Function (documentSymbol g symbol)
 
-
 findGlobalForModule :: (
-    MonadEnv     m
-  , MonadCompile m
-  ) => String -> Global -> AppResult m (Maybe Global)
+    MonadCompile m
+  , MonadEnv     m
+  , MonadFail    m
+  , MonadGlobals m
+  ) => String -> Global -> m (Maybe Global)
 findGlobalForModule moduleName sourceGlobal = do
   uri  <- findFileUriForImportedModule moduleName sourceGlobal
   g    <- findOrLoadGlobal uri
@@ -55,23 +57,25 @@ findGlobalForModule moduleName sourceGlobal = do
 
 findFileUriForImportedModule :: (
     MonadEnv     m 
+  , MonadFail    m
   , MonadGlobals m
-  ) => String -> Global -> AppResult m URI
+  ) => String -> Global -> m URI
 findFileUriForImportedModule moduleName sourceGlobal = do
   let mod = NSX moduleName
-  globals     <- readGlobals
-  rootPath    <- projectRoot >>= liftToApp
-  pack <- liftToApp $ case sourceGlobal.namespaces.lookup mod of 
-    Nothing  -> report ("Could not find module " ++ show moduleName)
+  globals     <- readGlobals ()
+  rootPath    <- projectRoot () >>= note "Illegal state: Project root not set."
+  pack <- case sourceGlobal.namespaces.lookup mod of 
+    Nothing  -> fail ("Could not find module " ++ show moduleName)
     Just ps  -> pure ps
-  uri  <- liftToApp . asServerResult $ rootPath.fromPackage sourceGlobal pack
+  uri  <- asFail $ rootPath.fromPackage sourceGlobal pack
   pure uri
 
 findOrLoadGlobal :: (
-   MonadCompile m
+    MonadCompile m
+  , MonadGlobals m
   ) => URI -> m (Maybe Global)
 findOrLoadGlobal uri = do
-  globals <- readGlobals
+  globals <- readGlobals ()
   case (globals.lookup uri) of
     Just g  -> pure $ Just g
     Nothing -> compileFile uri

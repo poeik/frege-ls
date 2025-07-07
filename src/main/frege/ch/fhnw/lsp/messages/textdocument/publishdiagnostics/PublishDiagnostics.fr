@@ -6,21 +6,21 @@ import Compiler.types.Positions as P()
 import ch.fhnw.lsp.effects.MonadLog(MonadLog(logInfo))
 import ch.fhnw.lsp.effects.MonadGlobals(MonadGlobals(readGlobals))
 import ch.fhnw.lsp.effects.MonadSendMessage(MonadSendMessage(sendServerMessage))
-import ch.fhnw.lsp.env.App(AppResult, liftToApp)
 
-import ch.fhnw.lsp.utils.Globals(findGlobal)
 import ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnosticsTypes(Diagnostic, DiagnosticSeverity(Hint, Warning, Error), PublishDiagnosticsParams)
 import ch.fhnw.lsp.messages.GeneralLspTypes(Range(Range), Position(Position), URI(), FileVersion())
 import ch.fhnw.lsp.messages.MessageTypes(ServerMessage(PublishDiagnosticsNotification))
+import ch.fhnw.lsp.utils.Utils(asFail, findGlobal)
 
 publishDiagnosticsNotification :: (
-    MonadLog         m, 
-    MonadSendMessage m, 
-    MonadGlobals     m
-  ) => URI -> Maybe FileVersion -> AppResult m ()
+    MonadFail        m
+  , MonadGlobals     m
+  , MonadLog         m
+  , MonadSendMessage m
+  ) => URI -> Maybe FileVersion -> m ()
 publishDiagnosticsNotification uri version = do
-  globals <- readGlobals
-  global <- liftToApp $ findGlobal uri globals 
+  globals <- readGlobals ()
+  global  <- asFail $ findGlobal uri globals 
   logInfo $ "publishing " ++ (show . length) global.sub.messages ++ " diagnostics for " ++ show uri.path
   let params = diagnosticParams uri version global.sub.messages
   sendServerMessage (PublishDiagnosticsNotification params)

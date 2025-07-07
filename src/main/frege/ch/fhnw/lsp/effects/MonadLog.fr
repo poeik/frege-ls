@@ -1,24 +1,18 @@
 module ch.fhnw.lsp.effects.MonadLog where
 
 import Control.monad.trans.MonadIO(MonadIO(liftIO))
-import Control.monad.State(StateT())
 import Control.monad.trans.EitherT(EitherT)
-import Control.monad.trans.MonadTrans(lift)
 
-import ch.fhnw.lsp.compile.CompileOptions(defaultLogFile)
+import ch.fhnw.lsp.AppM(AppM, AppStateM)
 import ch.fhnw.lsp.logger.Logger(getFileLogger, printWriterLog, Logger)
+import ch.fhnw.lsp.compile.CompileOptions(defaultLogFile)
 
 ---  Our logging effect
 class Monad m => MonadLog m where
   logInfo :: String -> m ()
 
-instance (MonadIO m) => MonadLog (StateT s m) where
-  logInfo :: (MonadIO m) => String -> StateT s m ()
+instance (Monad AppStateM) => MonadLog AppM where
   logInfo msg = do 
     logger <- liftIO $ getFileLogger defaultLogFile
     let log = printWriterLog logger
     liftIO $ log msg
-
-instance MonadLog m => MonadLog (EitherT e m) where
-  logInfo :: MonadLog m => String -> EitherT e m ()
-  logInfo = lift . logInfo

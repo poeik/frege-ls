@@ -15,7 +15,7 @@ frege {
     replModule  = 'ch.fhnw.lsp.Main' // see replFrege task
     testModules = [
       'ch.fhnw.lsp.rpc.RpcSpec'
-    , 'ch.fhnw.lsp.utils.compile.DebouncedCompileSpec'
+    , 'ch.fhnw.lsp.messages.textdocument.didchange.DidChangeSpec'
     , 'ch.fhnw.lsp.messages.GeneralLspTypesSpec'
     ]
 }

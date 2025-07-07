@@ -1,0 +1,27 @@
+module ch.fhnw.lsp.effects.MonadEnv where
+
+import ch.fhnw.lsp.env.LspState(LspState(), ServerResult)
+import ch.fhnw.lsp.messages.GeneralLspTypes(URI)
+
+import Control.concurrent.STM(TVar(), atomically)
+import Control.monad.State(StateT())
+import Control.monad.trans.EitherT(EitherT())
+import Control.monad.trans.MonadIO(MonadIO(liftIO))
+import Control.monad.trans.MonadTrans(lift)
+
+class Monad m => MonadEnv m where
+  projectRoot              :: m (ServerResult URI)
+  waitingForCompilationRef :: m (TVar Bool)
+  setWaitForCompilationRef :: Bool -> m ()
+
+instance (MonadIO m) => MonadEnv (StateT LspState m) where
+  projectRoot              = fmap LspState.rootPath StateT.get
+  waitingForCompilationRef = fmap (LspState.waitForCompilation) StateT.get
+  setWaitForCompilationRef val = do
+    waitRef <- waitingForCompilationRef
+    liftIO $ atomically (TVar.write waitRef val)
+
+instance (MonadEnv m) => MonadEnv (EitherT e m) where
+  projectRoot = lift projectRoot
+  waitingForCompilationRef = lift waitingForCompilationRef
+  setWaitForCompilationRef = lift . setWaitForCompilationRef

@@ -1,17 +1,18 @@
 module ch.fhnw.lsp.Main where
 
-import Control.monad.trans.EitherT
+import Control.monad.trans.EitherT()
+import Control.monad.State(StateT(), State(), runStateT, promote)
 import Data.JSON
 import Java.IO as JIO()
 
-import ch.fhnw.lsp.logger.Logger(getFileLogger, printWriterLog, Logger)
-import ch.fhnw.lsp.rpc.Rpc(decodeMessage)
+import ch.fhnw.lsp.compile.CompileOptions(defaultLogFile)
+import ch.fhnw.lsp.env.App(AppResult, runApp, liftToApp)
+import ch.fhnw.lsp.env.LspState(asServerResult, initialState, LspState(), ServerError(Error))
+import ch.fhnw.lsp.io.IO(sendServerMessage, readMessage, createFile)
 import ch.fhnw.lsp.messages.Message(processClientMessage)
 import ch.fhnw.lsp.messages.MessageTypes(ServerMessage, Method)
-import ch.fhnw.lsp.env.LspEnv(runLspEnv, LspEnv, liftMonad, liftEither, logInfo)
-import ch.fhnw.lsp.env.LspState(initialState, LspState, ServerError(Error))
-import ch.fhnw.lsp.io.IO(sendServerMessage, readMessage, createFile)
-import ch.fhnw.lsp.compile.CompileOptions(defaultLogFile)
+import ch.fhnw.lsp.logger.Logger(getFileLogger, printWriterLog, Logger)
+import ch.fhnw.lsp.rpc.Rpc(decodeMessage)
 
 main []             = main [defaultLogFile]
 main (logFile : _) = do
@@ -27,8 +28,8 @@ main (logFile : _) = do
 startLsp :: Logger IO -> IO ()
 startLsp log = do
   log "Started Frege LSP"
-  st <- initialState log
-  forever (mainLoop st)
+  st <- initialState
+  forever (mainLoop st log)
       `catch` eof log
       `finally` 
         log "Shutting down after error occurance" 
@@ -37,20 +38,20 @@ startLsp log = do
       eof :: Logger IO -> EOFException -> IO ()
       eof log e = log $ "an error occurred" ++ e.getMessage
 
-mainLoop :: LspState IO -> IO ()
-mainLoop st = do 
-  (result, st) <- runLspEnv st $ handleClientMessage
+mainLoop :: LspState -> (String -> IO ()) -> IO ()
+mainLoop st logger = do 
+  (length, newMessage) <- readMessage
+  (Method method) <-  parseJSON newMessage
+  logger ("Received \"" ++ method ++ "\"-message with length: " ++ show length)
+  (result, st) <- runApp st $ handleClientMessage newMessage
   case result of 
-    Left  (Error err) -> st.logger $ "An error occured: " ++ err
+    Left  (Error err) -> logger $ "An error occured: " ++ err
     Right (Just msg) -> sendServerMessage msg
     otherwise        -> pure ()
-  mainLoop st
+  mainLoop st logger
 
-handleClientMessage :: LspEnv IO (Maybe ServerMessage)
-handleClientMessage = do
-  (length, newMessage) <- liftMonad readMessage
-  (Method method)      <- liftEither $ parseJSON newMessage
-  logInfo ("Received \"" ++ method ++ "\"-message with length: " ++ show length)
-  request        <- liftEither $ decodeMessage newMessage
-  maybeResponse  <- processClientMessage request
+handleClientMessage :: String -> AppResult (StateT LspState IO) (Maybe ServerMessage)
+handleClientMessage newMessage = do
+  request         <- liftToApp . asServerResult . decodeMessage  $ newMessage
+  maybeResponse   <- processClientMessage request
   pure maybeResponse

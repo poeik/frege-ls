@@ -1,16 +1,27 @@
 module ch.fhnw.lsp.messages.textdocument.didsave.DidSave where
 
-import ch.fhnw.lsp.messages.GeneralLspTypes(URI)
-import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo)
+import ch.fhnw.lsp.messages.GeneralLspTypes(URI())
 import ch.fhnw.lsp.messages.textdocument.didsave.DidSaveTypes
-import ch.fhnw.lsp.utils.Globals(compileFile)
 import ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnostics(publishDiagnosticsNotification)
-import ch.fhnw.lsp.utils.compile.DebouncedCompile(compileDebounced)
 
-processDidSaveNotification :: DidSaveNotificationParams -> LspEnv IO ()
+import ch.fhnw.lsp.effects.MonadEnv(MonadEnv())
+import ch.fhnw.lsp.effects.MonadLog(MonadLog(logInfo))
+import ch.fhnw.lsp.effects.MonadSendMessage(MonadSendMessage())
+import ch.fhnw.lsp.effects.MonadCompile(MonadCompile(compileFile))
+import ch.fhnw.lsp.env.App(AppResult)
+
+processDidSaveNotification ::
+  (
+    MonadLog         m
+  , MonadSendMessage m
+  , MonadCompile     m
+  , MonadEnv         m
+  ) => DidSaveNotificationParams -> AppResult m ()
 processDidSaveNotification params = do
   logInfo $ "saved: " ++ show params.textDocument.uri.path
-  compileDebounced $ do
+  -- TODO: compileDebounced right now still depends on MonadIO...
+  -- compileDebounced $ do
+  do
     maybeGlobal <- compileFile params.textDocument.uri
     case maybeGlobal of 
       Just g  -> publishDiagnosticsNotification params.textDocument.uri Nothing

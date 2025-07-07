@@ -1,15 +1,23 @@
 module ch.fhnw.lsp.messages.textdocument.completion.ModuleMemberCompletion where
 
-import Compiler.types.Tokens(Token, KeyTk)
 import Compiler.types.Global(Global, Symbol, IdInfo)
-import ch.fhnw.lsp.env.LspEnv(LspEnv)
-import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionItem)
-import ch.fhnw.lsp.utils.Globals(findGlobalForModule)
-import ch.fhnw.lsp.utils.Documentation(documentSymbol)
+import Compiler.types.NSNames(NSX)
 import Compiler.types.SourceDefinitions(funbinding)
-import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionItemKind(Function))
+import Compiler.types.Tokens(Token, KeyTk)
 
-findModuleMembers :: Token -> Global -> LspEnv IO [CompletionItem]
+import ch.fhnw.lsp.env.App(AppResult, liftToApp)
+import ch.fhnw.lsp.env.LspState(report, asServerResult)
+import ch.fhnw.lsp.effects.MonadCompile(MonadCompile(compileFile))
+import ch.fhnw.lsp.effects.MonadEnv(MonadEnv(projectRoot))
+import ch.fhnw.lsp.effects.MonadGlobals(MonadGlobals(readGlobals))
+import ch.fhnw.lsp.messages.GeneralLspTypes(URI())
+import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionItem(CompletionItem), CompletionItemKind(Function))
+import ch.fhnw.lsp.utils.Documentation(documentSymbol)
+
+findModuleMembers :: (
+    MonadCompile m
+  , MonadEnv     m
+  ) => Token -> Global -> AppResult m [CompletionItem]
 findModuleMembers token sourceGlobal = do
   target <- findGlobalForModule token.value sourceGlobal
   pure $ case target of
@@ -34,3 +42,37 @@ symbolsInModule g = map buildCompletionItem (toQNames defs)
     findIdInfo = g.sub.idKind.lookup . KeyTk
     buildCompletionItem :: Symbol -> CompletionItem
     buildCompletionItem symbol = CompletionItem symbol.name.key Function (documentSymbol g symbol)
+
+
+findGlobalForModule :: (
+    MonadEnv     m
+  , MonadCompile m
+  ) => String -> Global -> AppResult m (Maybe Global)
+findGlobalForModule moduleName sourceGlobal = do
+  uri  <- findFileUriForImportedModule moduleName sourceGlobal
+  g    <- findOrLoadGlobal uri
+  pure g
+
+findFileUriForImportedModule :: (
+    MonadEnv     m 
+  , MonadGlobals m
+  ) => String -> Global -> AppResult m URI
+findFileUriForImportedModule moduleName sourceGlobal = do
+  let mod = NSX moduleName
+  globals     <- readGlobals
+  rootPath    <- projectRoot >>= liftToApp
+  pack <- liftToApp $ case sourceGlobal.namespaces.lookup mod of 
+    Nothing  -> report ("Could not find module " ++ show moduleName)
+    Just ps  -> pure ps
+  uri  <- liftToApp . asServerResult $ rootPath.fromPackage sourceGlobal pack
+  pure uri
+
+findOrLoadGlobal :: (
+   MonadCompile m
+  ) => URI -> m (Maybe Global)
+findOrLoadGlobal uri = do
+  globals <- readGlobals
+  case (globals.lookup uri) of
+    Just g  -> pure $ Just g
+    Nothing -> compileFile uri
+

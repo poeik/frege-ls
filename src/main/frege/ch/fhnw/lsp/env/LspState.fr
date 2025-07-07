@@ -3,14 +3,15 @@ module ch.fhnw.lsp.env.LspState where
 import ch.fhnw.lsp.messages.GeneralLspTypes (URI)
 import Data.HashMap
 import Compiler.types.Global (Global, Options, SubSt)
-import ch.fhnw.lsp.logger.Logger
 import Control.concurrent.STM
+import Control.monad.trans.MonadIO(MonadIO, liftIO)
+import ch.fhnw.lsp.compile.CompileOptions(defaultLogFile)
 
 type ServerResult a = (ServerError | a)
 data ServerError = Error String
 
-initialState :: Monad m => Logger m -> IO (LspState m)
-initialState logger = do 
+initialState :: IO LspState
+initialState = do 
   globals             <- atomically $ TVar.new empty
   waitForCompilation  <- atomically $ TVar.new False
   pure LspState {
@@ -18,15 +19,15 @@ initialState logger = do
   , globals            = globals
   , waitForCompilation = waitForCompilation
   , projectGlobal      = Nothing
-  , logger             = logger
+  , logFilePath        = defaultLogFile
   }
 
-data LspState m = LspState { 
+data LspState = LspState { 
   rootPath           :: ServerResult URI 
 , globals            :: TVar (HashMap URI Global)
 , waitForCompilation :: TVar Bool
 , projectGlobal      :: Maybe Global
-, logger             :: Logger m
+, logFilePath        :: String
 }
 
 report :: String -> ServerResult a
@@ -36,16 +37,16 @@ asServerResult :: (String | a) -> ServerResult a
 asServerResult (Right a) = Right a
 asServerResult (Left e)  = report e
 
-setGlobals :: Monad m => HashMap URI Global -> LspState m -> IO ()
+setGlobals :: HashMap URI Global -> LspState -> IO ()
 setGlobals newGlobals st = do
   atomically $ st.globals.write newGlobals
 
-updateGlobals :: Monad m => HashMap URI Global -> LspState m -> IO ()
-updateGlobals newGlobals st = atomically $ do
+updateGlobals :: (MonadIO m) => HashMap URI Global -> LspState -> m ()
+updateGlobals newGlobals st = liftIO $ atomically $ do
     values  <- st.globals.read
     let result = union newGlobals values
     st.globals.write result
 
-setWaitForCompilation :: Bool -> LspState IO -> IO ()
+setWaitForCompilation :: Bool -> LspState -> IO ()
 setWaitForCompilation wait st = atomically $
     st.waitForCompilation.write wait

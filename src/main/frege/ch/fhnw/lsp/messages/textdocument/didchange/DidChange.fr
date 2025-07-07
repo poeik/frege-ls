@@ -1,34 +1,51 @@
 module ch.fhnw.lsp.messages.textdocument.didchange.DidChange where
 
-import ch.fhnw.lsp.env.LspEnv(LspEnv, liftIO, get)
-import ch.fhnw.lsp.env.LspState(setWaitForCompilation)
 import ch.fhnw.lsp.messages.GeneralLspTypes(URI, FileVersion)
 import ch.fhnw.lsp.messages.textdocument.didchange.DidChangeTypes(DidChangeNotificationParams)
 import ch.fhnw.lsp.messages.textdocument.publishdiagnostics.PublishDiagnostics(publishDiagnosticsNotification)
-import ch.fhnw.lsp.utils.Globals(compileInMemory)
 import ch.fhnw.lsp.utils.Utils(joinedBy)
-import ch.fhnw.lsp.utils.compile.DebouncedCompile(compileDebounced)
 
-processDidChangeNotification :: DidChangeNotificationParams -> LspEnv IO ()
+import ch.fhnw.lsp.env.App(AppResult)
+import ch.fhnw.lsp.effects.MonadEnv(MonadEnv(setWaitForCompilationRef))
+import ch.fhnw.lsp.effects.MonadCompile(MonadCompile(compileFile, compileInMemory))
+-- import ch.fhnw.lsp.effects.MonadDebounce(MonadDebounce(compileDebounced))
+import ch.fhnw.lsp.effects.MonadGlobals(MonadGlobals(waitForCompilation, readGlobals))
+import ch.fhnw.lsp.effects.MonadLog(MonadLog(logInfo))
+import ch.fhnw.lsp.effects.MonadSendMessage(MonadSendMessage())
+
+
+processDidChangeNotification :: (
+    MonadLog         m
+  , MonadSendMessage m
+  , MonadCompile     m
+  , MonadEnv         m
+  , MonadGlobals     m
+  ) => DidChangeNotificationParams -> AppResult m ()
 processDidChangeNotification params = do
   let content = (head params.contentChanges).text
   let version = params.textDocument.version
   let uri     = params.textDocument.uri
 
-  compileDebounced $ compileAfterChange uri version content
+  -- TODO: compileDebounced right now still depends on MonadIO...
+  -- compileDebounced $ compileAfterChange uri version content
+  compileAfterChange uri version content
 
-compileAfterChange :: URI -> FileVersion -> String -> LspEnv IO ()
+compileAfterChange :: (
+    MonadLog         m
+  , MonadSendMessage m
+  , MonadGlobals     m
+  , MonadCompile     m
+  , MonadEnv         m
+  ) => URI -> FileVersion -> String -> AppResult m ()
 compileAfterChange uri version content = do
   -- we remove dots at the end of line in on change compilations since the 
   -- compiler cannot handle them, but they are very important for autocompletion
   let text = dropTrailingDots content
-  maybeGlobal <- compileInMemory uri text
-  state <- get
+  maybeGlobal <- compileInMemory text uri
   case maybeGlobal of
     Just g -> publishDiagnosticsNotification uri (Just version)
     Nothing -> pure ()
-  
-  liftIO $ setWaitForCompilation False state
+  setWaitForCompilationRef False 
 
 dropTrailingDots :: String -> String
 dropTrailingDots text = (map removeTrailingDot lines) `joinedBy` "\r\n"

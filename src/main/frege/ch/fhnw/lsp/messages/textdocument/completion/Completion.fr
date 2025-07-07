@@ -1,25 +1,32 @@
 module ch.fhnw.lsp.messages.textdocument.completion.Completion where
 
-import Control.concurrent.STM(atomically, TVar)
 import Compiler.types.Tokens(Token, KeyTk)
 import Compiler.types.Global(Global, Symbol, IdInfo)
 import Data.HashMap(HashMap)
 import Compiler.types.QNames(QName)
 
-import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, liftResult, access, liftIO)
+import ch.fhnw.lsp.env.App(AppResult, liftToApp)
+import ch.fhnw.lsp.effects.MonadEnv(MonadEnv())
+import ch.fhnw.lsp.effects.MonadCompile(MonadCompile())
+import ch.fhnw.lsp.effects.MonadGlobals(MonadGlobals(waitForCompilation, readGlobals))
+import ch.fhnw.lsp.effects.MonadLog(MonadLog(logInfo))
 import ch.fhnw.lsp.env.LspState(ServerResult)
-import ch.fhnw.lsp.utils.Globals(findGlobal, readGlobals)
+import ch.fhnw.lsp.utils.Globals(findGlobal)
 import ch.fhnw.lsp.utils.Utils(tokenAt)
 import ch.fhnw.lsp.messages.textdocument.completion.CompletionTypes(CompletionList, CompletionItem, CompletionRequestParams)
 import ch.fhnw.lsp.messages.textdocument.completion.RecordFieldCompletion(findMembers)
 import ch.fhnw.lsp.messages.GeneralLspTypes(Position, URI)
 import ch.fhnw.lsp.messages.textdocument.completion.ModuleMemberCompletion(findModuleMembers)
 
-processCompletionRequest :: CompletionRequestParams -> LspEnv IO CompletionList
+processCompletionRequest :: (
+    MonadLog     m
+  , MonadEnv     m
+  , MonadCompile m
+  ) => CompletionRequestParams -> AppResult m CompletionList
 processCompletionRequest params =
   case params.context >>= _.triggerCharacter of
     Just "."  -> do
-      -- We don't have the latest versions of the compiled files yet, 
+      -- We may not have the latest versions of the compiled files yet, 
       -- therefore we wait for the compiler to finish.
       waitForCompilation maxWaitForCompilationTime
       logInfo "analyzing completions"
@@ -29,11 +36,14 @@ processCompletionRequest params =
   where
     maxWaitForCompilationTime = 5000
 
-completionList :: CompletionRequestParams -> LspEnv IO [CompletionItem]
+completionList :: (
+    MonadEnv     m
+  , MonadCompile m
+  ) => CompletionRequestParams -> AppResult m [CompletionItem]
 completionList params = do
   globals     <- readGlobals
   let pos = params.position.{character <- (\c -> c - 2)} -- we want the token two positions before the cursor (one position before the cursor is the `.`)
-  (token, sourceGlobal)   <- liftResult $ findTokenAtPositionInUri pos params.textDocument.uri globals
+  (token, sourceGlobal)   <- liftToApp $ findTokenAtPositionInUri pos params.textDocument.uri globals
   case tokenToQName token sourceGlobal of
     -- lets find all members of the token
     Just qname -> pure $ findMembers qname sourceGlobal
@@ -51,25 +61,3 @@ tokenToQName tok sourceGlobal = do
   case sourceGlobal.resolved tok of
     Just (Right qname) -> Just qname
     _ -> Nothing
-
-{---
-  This function reads the `watingForCompilation` state from `LspState`. If this
-  TVar is set to `true` it blocks the current thread by sleeping for a short 
-  period. Specify a suitable `maxWaitTime` which is the max amount of time 
-  following computations in the monadic sequencing may be deferred.
--}
-waitForCompilation :: Long -> LspEnv IO ()
-waitForCompilation maxWaitTime
-  | maxWaitTime < waitMsPerTry -> do 
-      logInfo $ "Waited for " ++ "ms for compilation to complete, giving up."
-  | otherwise -> do
-      waiting <- waitingForCompilation 
-      if waiting then do
-        logInfo $ "Waiting for Compilation to complete"
-        liftIO $ Thread.sleep waitMsPerTry
-        waitForCompilation (maxWaitTime - waitMsPerTry)
-      else pure ()
-  where
-    waitMsPerTry = 100
-    waitingForCompilation = access _.waitForCompilation >>= (liftIO . atomically . TVar.read)
-

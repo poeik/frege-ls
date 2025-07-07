@@ -5,15 +5,17 @@ import Compiler.types.QNames(QName)
 import Compiler.types.Tokens(Token)
 import Data.HashMap(HashMap)
 
-import ch.fhnw.lsp.messages.GeneralLspTypes(URI, MarkupContent, Markdown, Position, Range)
-import ch.fhnw.lsp.env.LspEnv(LspEnv, logInfo, liftResult)
+import ch.fhnw.lsp.effects.MonadLog(MonadLog(logInfo))
+import ch.fhnw.lsp.effects.MonadGlobals(MonadGlobals(readGlobals))
+import ch.fhnw.lsp.env.App(AppResult, liftToApp)
 import ch.fhnw.lsp.env.LspState(report, ServerResult, ServerError(Error))
+import ch.fhnw.lsp.messages.GeneralLspTypes(URI(), MarkupContent(), Markdown, Position(Position), Range(Range))
 import ch.fhnw.lsp.messages.textdocument.hover.HoverTypes(HoverRequestParams, HoverResult)
 import ch.fhnw.lsp.utils.Utils(tokenAt, note, hush)
 import ch.fhnw.lsp.utils.Documentation(documentSymbol)
-import ch.fhnw.lsp.utils.Globals(findGlobal, readGlobals)
+import ch.fhnw.lsp.utils.Globals(findGlobal)
 
-processHoverRequest :: HoverRequestParams -> LspEnv IO HoverResult
+processHoverRequest :: (MonadLog m, MonadGlobals m) => HoverRequestParams -> AppResult m HoverResult
 processHoverRequest params = do
   let currentUri = params.textDocument.uri
   let cursorPos  = params.position
@@ -21,18 +23,18 @@ processHoverRequest params = do
   (documentation, range) <- hoverInformation currentUri cursorPos
   pure $ HoverResult { contents = documentation, range = range }
 
-hoverInformation :: URI -> Position -> LspEnv IO (MarkupContent, Range)
+hoverInformation :: (MonadGlobals m) => URI -> Position -> AppResult m (MarkupContent, Range)
 hoverInformation uri position = do
   globals                 <- readGlobals
   (token, sourceGlobal)   <- findToken position uri globals
   case tokenToQName token sourceGlobal >>= sourceGlobal.findit of
     Just sym -> pure $ (documentSymbol sourceGlobal sym, tokenToRange token)
-    Nothing    -> liftResult $ report "Could not find hover information for requested position"
+    Nothing    -> liftToApp $ report "Could not find hover information for requested position"
     
-findToken :: Position -> URI -> HashMap URI Global -> LspEnv IO (Token, Global)
+findToken :: (Monad m) => Position -> URI -> HashMap URI Global -> AppResult m (Token, Global)
 findToken pos uri globals = do
-  global <- liftResult $ findGlobal uri globals
-  token  <- liftResult $ tokenAt pos
+  global <- liftToApp $ findGlobal uri globals
+  token  <- liftToApp $ tokenAt pos
     global
   pure (token, global)
 

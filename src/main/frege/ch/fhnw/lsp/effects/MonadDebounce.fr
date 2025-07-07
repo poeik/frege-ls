@@ -1,0 +1,28 @@
+module ch.fhnw.lsp.effects.MonadDebounce where
+
+import Control.monad.trans.MonadIO(MonadIO(liftIO))
+import Control.monad.trans.EitherT(EitherT())
+import ch.fhnw.lsp.effects.MonadEnv(MonadEnv(setWaitForCompilationRef))
+
+class (Monad m) => MonadDebounce m  where
+  compileDebounced :: m () -> m ()
+
+instance (MonadIO m, MonadEnv m) => MonadDebounce (EitherT e m) where
+  -- TODO: Extract IO actions to separate Monad effect
+  compileDebounced action = do
+    debouncer <- liftIO $ CompileDebouncer.new 50
+    runnable  <- liftIO $ Runnable.new
+      (do
+        -- TODO: see if this works, maybe add `!` to evaluate eagerly
+        let _ = EitherT.run action
+        pure ()
+      )
+    liftIO $ debouncer.trigger runnable
+    setWaitForCompilationRef True
+
+
+data CompileDebouncer = native ch.fhnw.lsp.utils.compile.CompileDebouncer where
+  native new      :: Int -> IOMutable CompileDebouncer 
+  native trigger  :: MutableIO CompileDebouncer -> MutableIO Runnable -> IO ()
+  native shutdown :: MutableIO CompileDebouncer -> IO ()
+

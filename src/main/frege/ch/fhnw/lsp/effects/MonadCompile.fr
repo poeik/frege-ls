@@ -1,0 +1,67 @@
+module ch.fhnw.lsp.effects.MonadCompile where
+
+import Compiler.types.Global(Global())
+import Control.monad.State(StateT())
+import Control.monad.trans.MonadIO(MonadIO(liftIO))
+import Control.monad.trans.MonadTrans(lift)
+import Control.monad.trans.EitherT(EitherT)
+import Data.HashMap(fromList, lookup)
+
+import ch.fhnw.lsp.compile.CompileExecutorLSP(compileMakeLSP, compileMakeLSPInMemory)
+import ch.fhnw.lsp.effects.MonadLog(MonadLog(logInfo))
+import ch.fhnw.lsp.effects.MonadGlobals(MonadGlobals(projectGlobal, addGlobals, readGlobals))
+import ch.fhnw.lsp.env.LspState(LspState())
+import ch.fhnw.lsp.messages.GeneralLspTypes(URI)
+
+class (MonadGlobals m) => MonadCompile m where
+  compileFile             :: URI -> m (Maybe Global)
+  compileInMemory         :: String -> URI -> m (Maybe Global)
+
+instance (MonadIO m) => MonadCompile (StateT LspState m) where
+  compileFile :: (MonadIO m) => URI -> StateT LspState m (Maybe Global)
+  compileFile uriToCompile = do
+    exists <- fileExists uriToCompile
+    if exists then do 
+      logInfo $ "Compiling: " ++ uriToCompile.path
+      pglobal <- projectGlobal
+      newGlobals <- case pglobal of
+        Just g -> liftIO $ compileMakeLSP uriToCompile.path g
+        Nothing -> pure []
+      updateURIGlobals newGlobals uriToCompile
+    else do
+      logInfo $ "File \"" ++ uriToCompile.path ++ "\" does not exist"
+      pure Nothing
+    where 
+      fileExists :: (MonadIO m) => URI -> StateT LspState m Bool
+      fileExists uri = liftIO file.exists
+        where 
+          file = File.new uri.path
+    compileInMemory sourceCodeToCompile belongingUri = do
+      maybeProjectGlobal <- projectGlobal
+      case maybeProjectGlobal of 
+        Just projectGlobal -> do
+          newGlobals <- liftIO $ compileMakeLSPInMemory belongingUri.path sourceCodeToCompile projectGlobal
+          updateURIGlobals newGlobals belongingUri
+        Nothing -> pure Nothing
+
+instance (MonadCompile m) => MonadCompile (EitherT e m) where
+  compileFile      = lift . compileFile
+  compileInMemory src uri = lift $ compileInMemory src uri
+
+data CompileDebouncer = native ch.fhnw.lsp.utils.compile.CompileDebouncer where
+  native new      :: Int -> IOMutable CompileDebouncer 
+  native trigger  :: MutableIO CompileDebouncer -> MutableIO Runnable -> IO ()
+  native shutdown :: MutableIO CompileDebouncer -> IO ()
+
+-- TODO move to  different file
+updateURIGlobals :: (
+    MonadLog     m
+  , MonadGlobals m
+  ) => [Global] -> URI -> m (Maybe Global)
+updateURIGlobals newGlobals openedUri = do
+    logInfo $ "Adding " ++ show newGlobals.length ++ " globals: " ++ (show (map (URI.fromGlobal) newGlobals))
+    let kv = map (\g -> (URI.fromGlobal g, g)) newGlobals
+    let globalsMap = fromList kv
+    addGlobals globalsMap
+    updated <- readGlobals
+    pure $ lookup openedUri updated

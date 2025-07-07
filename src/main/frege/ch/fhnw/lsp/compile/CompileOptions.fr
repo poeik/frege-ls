@@ -21,7 +21,7 @@ standardCompileOptions = Options
         source       = "-",
         sourcePath   = [ getEnvDefault "src/main/frege/" "FREGE_LS_SOURCE_DIR" ],
         dir          =  rootOutputDir ++ "/classes/frege", -- this folder must already exist before loading the classloader, otherwise we get import errors
-        path         = [ getEnvDefault "" "FREGE_LS_EXTRA_CLASSPATH" ],
+        path         = [],
         prefix       = "",
         encoding     = Just "UTF-8",
         tRanges      = [],
@@ -36,7 +36,7 @@ standardCompileOptions = Options
                        IDEMODE,
                        IDETOKENS,
                        WITHCP,
-                       RUNJAVAC,
+                       -- RUNJAVAC,
                        MAKE,
                      ]
     }

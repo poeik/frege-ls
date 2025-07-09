@@ -143,7 +143,7 @@ shouldCorrectlyConfigureExtraClasspath = once $ morallyDubiousIOProperty do
         "main = println \"Hello FregeFX\""
     fregefxGlobal          <- CompileGlobal.fromOptions standardCompileOptions.
         {
-            path = [ "./src/main/resources/fregefx-0.8.2-SNAPSHOT.jar" ]
+            path = [ "./src/main/resources/test/fregefx-0.8.2-SNAPSHOT.jar" ]
         }
     actual                 <- compile fregeCodeWithDependency fregefxGlobal
     pure                    $ actual.errors == 0

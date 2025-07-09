@@ -1,0 +1,6 @@
+-- Copied from https://github.com/tricktron/frege-lsp-server/blob/cf0475522358bb22c5d70d5580ba31e3c00d5232/src/main/resources/FregeMakeModeTest.fr
+module FregeMakeModeTest where
+
+import Dep(square)
+
+frob a = square a

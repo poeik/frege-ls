@@ -14,7 +14,9 @@ frege {
     mainModule  = 'ch.fhnw.fregels.Main' // see runFrege task
     replModule  = 'ch.fhnw.fregels.Main' // see replFrege task
     testModules = [
-      'ch.fhnw.fregels.messages.textdocument.didchange.DidChangeSpec'
+      'ch.fhnw.fregels.compile.CompileMakeMode'
+    , 'ch.fhnw.fregels.compile.CompileNormalMode'
+    , 'ch.fhnw.fregels.messages.textdocument.didchange.DidChangeSpec'
     , 'ch.fhnw.fregels.messages.GeneralLspTypesSpec'
     , 'ch.fhnw.fregels.rpc.RpcSpec'
     ]

@@ -1,0 +1,61 @@
+module ch.fhnw.fregels.TestAppM where
+
+import Control.monad.State(State(), promote)
+import Control.monad.trans.EitherT(EitherT(EitherT), left)
+import Control.monad.trans.MonadTrans(lift)
+
+import ch.fhnw.fregels.effects.MonadLog(MonadLog(logInfo))
+import ch.fhnw.fregels.effects.MonadSystem(MonadSystem(systemExit))
+
+{- 
+                          -- Testing --
+
+For testing purposes we create an adaption of AppM using a much simpler state 
+and instances of the effects which give us the possibility to test them.
+-}
+
+data TestEnv a = TestEnv {
+  --- This field is intended to store side effects appearing during a test run
+  sideeffect :: a 
+}
+
+initializeEnvironment s = TestEnv { sideeffect = s }
+
+type TestState a = State (TestEnv a)
+
+-- We make it a newtype because we want to create new instances for the effects
+newtype TestAppM st a = TestAppM (EitherT String (TestState st) a) where
+  access :: (TestEnv s -> b) -> TestAppM s b
+  access accessor = TestAppM (lift $ fmap accessor State.get)
+  modify :: (TestEnv a -> TestEnv a) -> TestAppM a ()
+  modify modifier = TestAppM (lift (State.modify modifier))
+  run :: TestEnv st -> TestAppM st a -> ((String | a), TestEnv st) 
+  run env (TestAppM t) = State.run (EitherT.run t) env
+
+-- Since we created a newtype, we must provide dedicated Functor, Applicative, 
+-- Monad instances for our TestAppM.
+instance Functor (TestAppM st) where
+  fmap f (TestAppM t) = TestAppM (fmap f t)
+
+instance Applicative (TestAppM st) where
+  pure = TestAppM . pure
+  (<*>) (TestAppM f) (TestAppM t) = TestAppM $ f <*> t
+
+instance Monad (TestAppM st) where
+  (>>=) :: TestAppM st a -> (a -> TestAppM st b) -> TestAppM st b
+  (>>=) (TestAppM t) f = TestAppM $ do
+    current <- t
+    let (TestAppM result) = f current
+    result
+
+instance MonadFail (TestAppM st) where
+  fail = TestAppM . EitherT . return . Left
+
+
+--- We do not test logging, but simply ignore it
+instance MonadLog (TestAppM st) where
+  logInfo str = pure ()
+
+instance MonadSystem (TestAppM Int) where
+  systemExit _ =
+    TestAppM.modify _.{ sideeffect <- (+1) }

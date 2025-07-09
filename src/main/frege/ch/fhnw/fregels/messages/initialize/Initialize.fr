@@ -15,7 +15,7 @@ processInitializeMessage ::
   , MonadLog        m
   , MonadInitialize m
   ) => InitializeRequestParams -> m InitializeResult
-processInitializeMessage (init@(InitializeRequestParams _ _ _ _)) = do
+processInitializeMessage init = do
   logInfo $ clientInfosLog init
   let opt = standardCompileOptions
   setupCompileDir . compiledir $ opt
@@ -41,10 +41,10 @@ readRootDir (Just (_:_:_)) = fail "The Frege language server does not support mu
 readRootDir (Just (r:[]))  = pure r.uri
 readRootDir _              = fail "Please specify a root directory"
 
-serverInfos :: Maybe ServerInfo
-serverInfos = Just $ 
+serverInfos :: ServerInfo
+serverInfos =
   ServerInfo { 
-    name = "new Frege LSP"
+    name = "Frege Language Server"
   , version = Just "v0.0.1"
   }
 

@@ -23,7 +23,7 @@ main (logFile : _) = do
        JIO.stderr.println "Could not initialize log file, exiting"
        System.exit 1
      
-startLsp :: Logger IO -> IO ()
+startLsp :: Logger -> IO ()
 startLsp log = do
   log "Started Frege LSP"
   st <- initialState
@@ -33,7 +33,7 @@ startLsp log = do
         log "Shutting down after error occurance" 
           >> System.exit 1
     where
-      eof :: Logger IO -> EOFException -> IO ()
+      eof :: Logger -> EOFException -> IO ()
       eof log e = log $ "an error occurred" ++ e.getMessage
 
 mainLoop :: ServerState -> (String -> IO ()) -> IO ()

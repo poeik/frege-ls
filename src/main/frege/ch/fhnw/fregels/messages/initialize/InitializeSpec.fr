@@ -1,0 +1,89 @@
+module ch.fhnw.fregels.messages.initialize.InitializeSpec where
+
+import Compiler.types.Global(Options())
+import Java.IO as JIO()
+import Test.QuickCheck(Property, once, morallyDubiousIOProperty)
+
+import ch.fhnw.fregels.compile.CompileOptions(standardCompileOptions)
+import ch.fhnw.fregels.effects.MonadInitialize(MonadInitialize())
+import ch.fhnw.fregels.messages.initialize.Initialize(processInitializeMessage)
+import ch.fhnw.fregels.messages.initialize.InitializeTypes(InitializeRequestParams(InitializeRequestParams), WorkspaceFolder(WorkspaceFolder))
+import ch.fhnw.fregels.messages.GeneralLspTypes(URI())
+import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment)
+
+data InitializeEffects = Effects { opts :: Maybe Options, rootUri :: Maybe URI, compileDir :: Maybe JIO.File }
+
+instance MonadInitialize (TestAppM InitializeEffects) where
+  initializeEnvironment opts uri = TestAppM.modify 
+    _.{ sideeffect <- (\s -> s.{ opts = Just opts, rootUri = Just uri }) }
+  setupCompileDir file           = do
+      TestAppM.modify _.{ sideeffect <- (\s -> s.{ compileDir = Just file }) }
+      pure True
+
+initializeRequestParams :: InitializeRequestParams
+initializeRequestParams = InitializeRequestParams { 
+  processId = 0
+, clientInfo = Nothing
+, workspaceFolders = Just [ WorkspaceFolder { name = "", uri = URI.fromString "" } ] 
+, rootUri = Just $ URI.fromString ""
+}
+
+environment = initializeEnvironment (Effects Nothing Nothing Nothing)
+
+p_ShouldReturnInitializeResult :: Property
+p_ShouldReturnInitializeResult =
+  let
+    (result, _) = TestAppM.run environment $ processInitializeMessage initializeRequestParams
+  in 
+    once $
+      case result of
+        Right a -> 
+          a.serverInfo.name == "Frege Language Server" &&
+          a.capabilities.completionProvider.triggerCharacters == ["."]
+        Left e  -> False
+
+p_ShouldSetupCompileDir :: Property
+p_ShouldSetupCompileDir =
+  let
+    (_, env) = TestAppM.run environment $ processInitializeMessage initializeRequestParams
+  in 
+    once $
+      case env.sideeffect.compileDir of
+        Just file -> file.getPathF == standardCompileOptions.dir
+        Nothing   -> False
+
+p_ShouldInitializeEnvironment :: Property
+p_ShouldInitializeEnvironment = 
+  let
+    workspaceUri = URI.fromString "workspaceUri"
+    params = initializeRequestParams.{ workspaceFolders = Just [ WorkspaceFolder { name = "", uri = workspaceUri } ] }
+    (_, env) = TestAppM.run environment $ processInitializeMessage params
+  in 
+    once $
+     env.sideeffect.rootUri == Just workspaceUri &&
+     case env.sideeffect.opts of
+       Just opts -> True
+       Nothing   -> False
+
+p_ShouldFailOnMultipleRootDirs :: Property
+p_ShouldFailOnMultipleRootDirs = 
+  let
+    folder = WorkspaceFolder { name = "", uri = URI.fromString "" }
+    params = initializeRequestParams.{ workspaceFolders = Just [folder, folder] }
+    (res, _) = TestAppM.run environment $ processInitializeMessage params
+  in 
+    once $
+     case res of
+       Right _ -> False
+       Left  _ -> True
+
+p_ShouldFailOnZeroRootDirs :: Property
+p_ShouldFailOnZeroRootDirs = 
+  let
+    params = initializeRequestParams.{ workspaceFolders = Just [] }
+    (res, _) = TestAppM.run environment $ processInitializeMessage params
+  in 
+    once $
+     case res of
+       Right _ -> False
+       Left  _  -> True

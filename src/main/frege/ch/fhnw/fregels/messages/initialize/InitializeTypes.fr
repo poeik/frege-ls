@@ -26,7 +26,7 @@ data ClientInfo = ClientInfo {
 
 data InitializeResult = InitializeResult {
   capabilities :: ServerCapabilities,
-  serverInfo   :: Maybe ServerInfo
+  serverInfo   :: ServerInfo
 }
 
 derive Show InitializeResult
@@ -99,8 +99,11 @@ instance FromJSON WorkspaceFolder where
 
 instance ToJSON InitializeResult where
   toJSON InitializeResult { capabilities, serverInfo } =
-    Struct ( [ ("capabilities", toJSON capabilities) ]
-             ++ maybe [] (\si -> [("serverInfo", toJSON si)]) serverInfo )
+    Struct ( [ 
+               ("capabilities", toJSON capabilities)
+             , ("serverInfo", toJSON serverInfo )
+             ]
+           )
 
 instance ToJSON ServerInfo where
   toJSON ServerInfo { name, version } =

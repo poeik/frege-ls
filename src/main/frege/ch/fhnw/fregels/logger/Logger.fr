@@ -1,7 +1,6 @@
 module ch.fhnw.fregels.logger.Logger where
 
--- TODO: add log levels to logger
-type Logger m = String -> m ()
+type Logger = String -> IO ()
 type AbsolutePath = String
 
 data Date = native java.util.Date where
@@ -12,7 +11,7 @@ data Date = native java.util.Date where
 getFileLogger :: AbsolutePath -> IOMutable PrintWriter
 getFileLogger = appendWriter
 
-printWriterLog :: MutableIO PrintWriter -> Logger IO
+printWriterLog :: MutableIO PrintWriter -> Logger
 printWriterLog writer msg = do
   d <- Date.new ()
   timestamp <- d.toString

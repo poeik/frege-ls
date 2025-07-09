@@ -11,12 +11,12 @@ dependencies {
 frege {
     version     = '3.25.84'
     release     = '3.25alpha'
-    mainModule  = 'ch.fhnw.lsp.Main' // see runFrege task
-    replModule  = 'ch.fhnw.lsp.Main' // see replFrege task
+    mainModule  = 'ch.fhnw.fregels.Main' // see runFrege task
+    replModule  = 'ch.fhnw.fregels.Main' // see replFrege task
     testModules = [
-      'ch.fhnw.lsp.rpc.RpcSpec'
-    , 'ch.fhnw.lsp.messages.textdocument.didchange.DidChangeSpec'
-    , 'ch.fhnw.lsp.messages.GeneralLspTypesSpec'
+      'ch.fhnw.fregels.messages.textdocument.didchange.DidChangeSpec'
+    , 'ch.fhnw.fregels.messages.GeneralLspTypesSpec'
+    , 'ch.fhnw.fregels.rpc.RpcSpec'
     ]
 }
 
@@ -38,7 +38,7 @@ sourceSets {
 }
 
 application {
-    mainClass = 'ch.fhnw.lsp.Main'
+    mainClass = 'ch.fhnw.fregels.Main'
 }
 
 

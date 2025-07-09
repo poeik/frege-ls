@@ -1,0 +1,60 @@
+module ch.fhnw.fregels.messages.textdocument.didchange.DidChange where
+
+import ch.fhnw.fregels.messages.GeneralLspTypes(URI(), FileVersion())
+import ch.fhnw.fregels.messages.textdocument.didchange.DidChangeTypes(DidChangeNotificationParams())
+import ch.fhnw.fregels.messages.textdocument.publishdiagnostics.PublishDiagnostics(publishDiagnosticsNotification)
+import ch.fhnw.fregels.utils.Utils(joinedBy)
+
+import ch.fhnw.fregels.effects.MonadEnv(MonadEnv(setWaitForCompilationRef))
+import ch.fhnw.fregels.effects.MonadCompile(MonadCompile(compileFile, compileInMemory))
+import ch.fhnw.fregels.effects.MonadDebounce(MonadDebounce(compileDebounced))
+import ch.fhnw.fregels.effects.MonadGlobals(MonadGlobals(waitForCompilation))
+import ch.fhnw.fregels.effects.MonadLog(MonadLog(logInfo))
+import ch.fhnw.fregels.effects.MonadSendMessage(MonadSendMessage())
+
+
+processDidChangeNotification :: (
+    MonadCompile     m
+  , MonadDebounce    m
+  , MonadEnv         m
+  , MonadFail        m
+  , MonadGlobals     m
+  , MonadLog         m
+  , MonadSendMessage m
+  ) => DidChangeNotificationParams -> m ()
+processDidChangeNotification params = do
+  let content = (head params.contentChanges).text
+  let version = params.textDocument.version
+  let uri     = params.textDocument.uri
+
+  compileDebounced $ compileAfterChange uri version content
+
+compileAfterChange :: (
+    MonadCompile     m
+  , MonadEnv         m
+  , MonadFail        m
+  , MonadGlobals     m
+  , MonadLog         m
+  , MonadSendMessage m
+  ) => URI -> FileVersion -> String -> m ()
+compileAfterChange uri version content = do
+  -- we remove dots at the end of line in on change compilations since the 
+  -- compiler cannot handle them, but they are very important for autocompletion
+  let text = dropTrailingDots content
+  maybeGlobal <- compileInMemory text uri
+  case maybeGlobal of
+    Just g -> publishDiagnosticsNotification uri (Just version)
+    Nothing -> pure ()
+  setWaitForCompilationRef False 
+
+dropTrailingDots :: String -> String
+dropTrailingDots text = (map removeTrailingDot lines) `joinedBy` "\r\n"
+  where 
+    lines = toList $ strSplit text "\\R"
+    removeTrailingDot line
+      | strEndsWith line "." -> substring line 0 (line.length - 1)
+      | otherwise            -> line
+
+pure native strSplit split       :: String -> String -> JArray String
+pure native strEndsWith endsWith :: String -> String -> Bool
+pure native substring substring  :: String -> Int -> Int -> String

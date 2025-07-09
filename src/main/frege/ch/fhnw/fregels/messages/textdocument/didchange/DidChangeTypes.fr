@@ -1,0 +1,43 @@
+module ch.fhnw.fregels.messages.textdocument.didchange.DidChangeTypes where
+
+import Data.JSON
+
+import ch.fhnw.fregels.messages.GeneralLspTypes
+
+data DidChangeNotificationParams = DidChangeRequestParams {
+  textDocument :: VersionedTextDocumentIdentifier
+, contentChanges :: [TextDocumentContentChangeEvent]
+}
+derive Show DidChangeNotificationParams
+
+data TextDocumentContentChangeEvent = TextDocumentContentChangeEvent {
+  text :: String
+}
+derive Show TextDocumentContentChangeEvent
+
+data VersionedTextDocumentIdentifier = VersionedTextDocumentIdentifier {
+  version :: FileVersion
+, uri     :: URI
+}
+derive Show VersionedTextDocumentIdentifier
+
+instance FromJSON TextDocumentContentChangeEvent where
+  fromJSON (Struct as) = do
+    text     <- field "text" as
+    pure TextDocumentContentChangeEvent { text }
+  fromJSON garbage = fail ("couldn't decode TextDocumentContentChangeEvent from: " ++ show garbage)
+
+instance FromJSON VersionedTextDocumentIdentifier where
+  fromJSON (Struct as) = do
+    version <- field "version" as
+    uri     <- field "uri" as
+    pure VersionedTextDocumentIdentifier { version, uri }
+  fromJSON garbage = fail ("couldn't decode VersionedTextDocumentIdentifier from: " ++ show garbage)
+
+instance FromJSON DidChangeNotificationParams where
+  fromJSON (Struct as) = do
+    textDocument   <- field "textDocument" as
+    contentChanges <- field "contentChanges" as
+    pure DidChangeRequestParams { textDocument, contentChanges }
+  fromJSON garbage = fail ("couldn't decode DidChangeRequestParams from: " ++ show garbage)
+

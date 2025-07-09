@@ -1,0 +1,22 @@
+{- 
+  Copied from https://github.com/tricktron/frege-lsp-server/blob/main/src/main/frege/ch/fhnw/thga/fregelanguageserver/compile/CompileGlobal.fr 
+-}
+module ch.fhnw.fregels.compile.CompileGlobal where
+
+import Compiler.types.Global (Global, Options, SubSt)
+import Compiler.common.CompilerOptions (standardGlobal, theClassLoader)
+
+import ch.fhnw.fregels.compile.CompileOptions(standardCompileOptions)
+
+fromOptions :: Options -> IO Global
+fromOptions opts = do
+    initialLoader <- theClassLoader opts
+    initialGlobal <- standardGlobal
+    pure initialGlobal. {
+        options  = opts,
+        sub     <- SubSt. { loader = initialLoader }
+    }
+
+standardCompileGlobal :: IO Global
+standardCompileGlobal = fromOptions standardCompileOptions
+

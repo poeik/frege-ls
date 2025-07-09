@@ -1,0 +1,24 @@
+module ch.fhnw.fregels.messages.textdocument.didsave.DidSaveTypes where
+
+import Data.JSON
+
+import ch.fhnw.fregels.messages.GeneralLspTypes
+
+data DidSaveNotificationParams = DidSaveNotificationParams { 
+  textDocument :: TextDocumentIdentifier
+, text :: Maybe String 
+}
+
+data TextDocumentIdentifier = TextDocumentIdentifier { uri :: URI }
+
+instance FromJSON TextDocumentIdentifier where
+  fromJSON (Struct as) = fmap TextDocumentIdentifier $ field "uri" as
+  fromJSON garbage     = fail ("couldn't decode TextDocumentIdentifier from: " ++ show garbage)
+
+instance FromJSON DidSaveNotificationParams where
+  fromJSON (Struct as) = do
+    identifier <- field "textDocument" as
+    text       <- optional "text" as
+    pure DidSaveNotificationParams { textDocument = identifier, text = text }
+  fromJSON garbage     = fail ("couldn't decode DidSaveNotificationParams from: " ++ show garbage)
+

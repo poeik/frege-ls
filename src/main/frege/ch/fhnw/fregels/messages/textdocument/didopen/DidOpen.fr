@@ -1,0 +1,30 @@
+module ch.fhnw.fregels.messages.textdocument.didopen.DidOpen where
+
+import ch.fhnw.fregels.messages.GeneralLspTypes(URI())
+import ch.fhnw.fregels.messages.textdocument.didopen.DidOpenTypes(DidOpenRequestParams())
+import ch.fhnw.fregels.messages.textdocument.publishdiagnostics.PublishDiagnostics(publishDiagnosticsNotification)
+
+import ch.fhnw.fregels.effects.MonadEnv(MonadEnv())
+import ch.fhnw.fregels.effects.MonadLog(MonadLog(logInfo))
+import ch.fhnw.fregels.effects.MonadSendMessage(MonadSendMessage())
+import ch.fhnw.fregels.effects.MonadCompile(MonadCompile(compileFile))
+import ch.fhnw.fregels.effects.MonadDebounce(MonadDebounce(compileDebounced))
+import ch.fhnw.fregels.effects.MonadGlobals(MonadGlobals())
+
+processDidOpenNotification :: 
+  (
+    MonadCompile     m
+  , MonadDebounce    m
+  , MonadEnv         m
+  , MonadFail        m
+  , MonadGlobals     m
+  , MonadLog         m
+  , MonadSendMessage m
+  ) => DidOpenRequestParams -> m ()
+processDidOpenNotification params = do
+  logInfo $ "opened: " ++ show params.textDocument.uri.path
+  compileDebounced $ do
+    maybeGlobal <- compileFile params.textDocument.uri
+    case maybeGlobal of 
+      Just g  -> publishDiagnosticsNotification params.textDocument.uri (Just params.textDocument.version)
+      Nothing -> pure ()

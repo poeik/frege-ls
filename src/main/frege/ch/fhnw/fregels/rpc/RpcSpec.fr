@@ -1,0 +1,43 @@
+module ch.fhnw.fregels.rpc.RpcSpec where
+
+import ch.fhnw.fregels.rpc.Rpc
+
+import Data.JSON
+import Test.QuickCheck
+
+data TestData = TestData { testing :: String }
+
+derive Eq TestData
+
+instance ToJSON TestData where
+  toJSON x = struct "testing" x.testing
+
+instance FromJSON TestData where
+  fromJSON (Struct x) = do
+    testing <- field "testing" x
+    pure TestData { testing }
+  fromJSON garbage = fail ("couldn't decode TestData from: " ++ show garbage)
+
+p_Encoding :: Property
+p_Encoding = 
+  let
+    expected  = "Content-Length: 18\r\n\r\n{\"testing\" : \"12\"}"
+    actual    = encodeMessage $ TestData "12"
+  in
+    once $ actual == expected
+
+p_EncodingWithGreek :: Property
+p_EncodingWithGreek = 
+  let
+    expected  = "Content-Length: 19\r\n\r\n{\"testing\" : \"1ω\"}"
+    actual    = encodeMessage $ TestData "1ω"
+  in
+    once $ actual == expected
+
+p_ExtractMessageLengthFromHeader :: Property
+p_ExtractMessageLengthFromHeader = 
+  let
+    header  = "Content-Length: 18"
+    actual  = extractMessageLength $ header
+  in
+    once $ actual == 18

@@ -1,0 +1,31 @@
+module ch.fhnw.fregels.messages.textdocument.didsave.DidSave where
+
+import ch.fhnw.fregels.messages.GeneralLspTypes(URI())
+import ch.fhnw.fregels.messages.textdocument.didsave.DidSaveTypes(DidSaveNotificationParams())
+import ch.fhnw.fregels.messages.textdocument.publishdiagnostics.PublishDiagnostics(publishDiagnosticsNotification)
+
+import ch.fhnw.fregels.effects.MonadEnv(MonadEnv())
+import ch.fhnw.fregels.effects.MonadLog(MonadLog(logInfo))
+import ch.fhnw.fregels.effects.MonadSendMessage(MonadSendMessage())
+import ch.fhnw.fregels.effects.MonadCompile(MonadCompile(compileFile))
+import ch.fhnw.fregels.effects.MonadDebounce(MonadDebounce(compileDebounced))
+import ch.fhnw.fregels.effects.MonadGlobals(MonadGlobals())
+
+processDidSaveNotification ::
+  (
+    MonadCompile     m
+  , MonadDebounce    m
+  , MonadEnv         m
+  , MonadFail        m
+  , MonadGlobals     m
+  , MonadLog         m
+  , MonadSendMessage m
+  ) => DidSaveNotificationParams -> m ()
+processDidSaveNotification params = do
+  logInfo $ "saved: " ++ show params.textDocument.uri.path
+
+  compileDebounced $ do
+    maybeGlobal <- compileFile params.textDocument.uri
+    case maybeGlobal of 
+      Just g  -> publishDiagnosticsNotification params.textDocument.uri Nothing
+      Nothing -> pure ()

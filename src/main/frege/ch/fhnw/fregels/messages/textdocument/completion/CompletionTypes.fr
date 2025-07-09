@@ -1,0 +1,69 @@
+module ch.fhnw.fregels.messages.textdocument.completion.CompletionTypes where
+
+import Data.JSON(FromJSON, ToJSON, Struct, field, optional)
+
+import ch.fhnw.fregels.messages.GeneralLspTypes(TextDocument, Position, MarkupContent)
+
+data CompletionRequestParams = CompletionRequestParams {
+  context      :: Maybe CompletionContext
+, textDocument :: TextDocument
+, position     :: Position
+}
+derive Show CompletionRequestParams
+
+data CompletionContext = CompletionContext {
+  triggerCharacter :: Maybe String
+}
+derive Show CompletionContext
+
+data CompletionList = CompletionList {
+  isIncomplete :: Bool
+, items        :: [CompletionItem]
+}
+derive Show CompletionList
+
+data CompletionItem = CompletionItem {
+  label         :: String
+, kind          :: CompletionItemKind
+, documentation :: MarkupContent
+}
+derive Show CompletionItem
+
+data CompletionItemKind = Function      
+derive Show CompletionItemKind
+
+-------------  FromJSON instances ------------- 
+
+instance FromJSON CompletionContext where
+  fromJSON (Struct as) = do
+    triggerCharacter <- optional "triggerCharacter" as
+    pure CompletionContext { triggerCharacter }
+  fromJSON garbage = fail ("couldn't decode CompletionContext from: " ++ show garbage)
+
+instance FromJSON CompletionRequestParams where
+  fromJSON (Struct as) = do
+    position     <- field "position" as
+    textDocument <- field "textDocument" as
+    context      <- optional "context" as
+    pure CompletionRequestParams { context, position, textDocument }
+  fromJSON garbage = fail ("couldn't decode CompletionRequestParams from: " ++ show garbage)
+
+
+-------------  ToJSON instances ------------- 
+instance ToJSON CompletionList where
+  toJSON (CompletionList isIncomplete items) = 
+    Struct [ 
+              ("isIncomplete", toJSON isIncomplete),
+              ("items"       , toJSON items),
+           ]
+
+instance ToJSON CompletionItem where
+  toJSON (CompletionItem label kind documentation) = 
+    Struct [
+      ("label"        , toJSON label)
+    , ("kind"         , toJSON kind) 
+    , ("documentation", toJSON documentation) 
+    ]
+
+instance ToJSON CompletionItemKind where
+  toJSON Function = toJSON 3

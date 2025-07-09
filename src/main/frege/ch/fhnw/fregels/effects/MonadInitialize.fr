@@ -1,0 +1,22 @@
+module ch.fhnw.fregels.effects.MonadInitialize where
+
+import Compiler.types.Global(Options())
+import Control.monad.trans.MonadIO(liftIO)
+import Control.monad.trans.MonadTrans(lift)
+import Control.monad.State(StateT())
+import Java.IO as JIO()
+
+import ch.fhnw.fregels.AppM(AppM, AppStateM)
+import ch.fhnw.fregels.compile.CompileExecutorLSP(fromOptionsLSP)
+import ch.fhnw.fregels.messages.GeneralLspTypes(URI())
+
+class (Monad m) => MonadInitialize m where
+  initializeEnvironment :: Options -> URI -> m ()
+  setupCompileDir :: JIO.File -> m Bool
+
+instance (Monad AppStateM) => MonadInitialize AppM where
+  initializeEnvironment options rootDir = do
+    global  <- liftIO $ fromOptionsLSP options
+    lift $ StateT.modify 
+      (\cur -> cur.{ projectGlobal = Just global, rootPath = Just rootDir })
+  setupCompileDir dir = liftIO dir.mkdirs

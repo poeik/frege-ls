@@ -1,0 +1,63 @@
+module ch.fhnw.fregels.messages.Message where
+
+import ch.fhnw.fregels.messages.initialize.Initialize(processInitializeMessage)
+import ch.fhnw.fregels.messages.textdocument.definition.Definition(processDefinitionMessage)
+import ch.fhnw.fregels.messages.textdocument.didopen.DidOpen(processDidOpenNotification)
+import ch.fhnw.fregels.messages.textdocument.didsave.DidSave(processDidSaveNotification)
+import ch.fhnw.fregels.messages.textdocument.completion.Completion(processCompletionRequest)
+import ch.fhnw.fregels.messages.textdocument.didchange.DidChange(processDidChangeNotification)
+import ch.fhnw.fregels.messages.textdocument.hover.Hover(processHoverRequest)
+import ch.fhnw.fregels.messages.exit.Exit(processExitNotification)
+import ch.fhnw.fregels.messages.MessageTypes
+  (ServerMessage
+    ( InitializeResponse
+    , DefinitionResponse
+    , CompletionResponse
+    , HoverResponse
+    , ShutdownResponse
+    )
+  , ClientMessage
+    ( InitializeRequest
+    , InitializedNotification
+    , DefinitionRequest
+    , DidOpenNotification
+    , CompletionRequest
+    , HoverRequest
+    , DidChangeNotification
+    , DidSaveNotification
+    , ExitNotification
+    , ShutdownRequest 
+    )
+  )
+
+import ch.fhnw.fregels.effects.MonadInitialize(MonadInitialize())
+import ch.fhnw.fregels.effects.MonadSystem(MonadSystem())
+import ch.fhnw.fregels.effects.MonadLog(MonadLog())
+import ch.fhnw.fregels.effects.MonadSendMessage(MonadSendMessage())
+import ch.fhnw.fregels.effects.MonadDebounce(MonadDebounce())
+import ch.fhnw.fregels.effects.MonadEnv(MonadEnv())
+import ch.fhnw.fregels.effects.MonadCompile(MonadCompile())
+import ch.fhnw.fregels.effects.MonadGlobals(MonadGlobals())
+
+processClientMessage :: (
+    MonadCompile     m
+  , MonadDebounce    m
+  , MonadEnv         m
+  , MonadFail        m
+  , MonadGlobals     m
+  , MonadInitialize  m
+  , MonadLog         m
+  , MonadSendMessage m
+  , MonadSystem      m
+  ) => ClientMessage -> m (Maybe ServerMessage)
+processClientMessage msg = case msg of
+    (InitializeRequest id params)  -> fmap (Just . (InitializeResponse id)) (processInitializeMessage params)
+    (DefinitionRequest id params)  -> fmap (Just . (DefinitionResponse id)) (processDefinitionMessage params)
+    (CompletionRequest id params)  -> fmap (Just . (CompletionResponse id)) (processCompletionRequest params)
+    (HoverRequest      id params)  -> fmap (Just . (HoverResponse id))      (processHoverRequest params)
+    (ShutdownRequest   id)         -> (pure . Just . ShutdownResponse) id
+    (DidOpenNotification   params) -> fmap (const Nothing)   (processDidOpenNotification params)
+    (DidSaveNotification   params) -> fmap (const Nothing)   (processDidSaveNotification params)
+    (DidChangeNotification params) -> fmap (const Nothing)   (processDidChangeNotification params)
+    ExitNotification               -> fmap (const Nothing)   processExitNotification
+    InitializedNotification        -> pure Nothing

@@ -1,0 +1,64 @@
+module ch.fhnw.fregels.messages.initialize.Initialize where
+
+import Compiler.types.Global(Options())
+import Java.IO as JIO()
+
+import ch.fhnw.fregels.compile.CompileOptions(standardCompileOptions)
+import ch.fhnw.fregels.effects.MonadLog(MonadLog(logInfo))
+import ch.fhnw.fregels.effects.MonadInitialize(MonadInitialize(initializeEnvironment, setupCompileDir))
+import ch.fhnw.fregels.messages.initialize.InitializeTypes
+import ch.fhnw.fregels.messages.GeneralLspTypes(URI())
+
+processInitializeMessage :: 
+  (
+    MonadFail       m
+  , MonadLog        m
+  , MonadInitialize m
+  ) => InitializeRequestParams -> m InitializeResult
+processInitializeMessage (init@(InitializeRequestParams _ _ _ _)) = do
+  logInfo $ clientInfosLog init
+  let opt = standardCompileOptions
+  setupCompileDir . compiledir $ opt
+  rootDir <- readRootDir init.workspaceFolders
+  initializeEnvironment opt rootDir
+  pure $ InitializeResult capabilities serverInfos
+  where
+    compiledir opt = JIO.File.new opt.dir
+
+clientInfosLog ::  InitializeRequestParams -> String
+clientInfosLog (InitializeRequestParams pid client workspaceFolders rootUri) = let 
+    clientInfos = case client of
+      Just client -> " to " ++ client.name ++ maybe "" ((++) ", version ") client.version
+      Nothing     -> ""
+    root    = maybe "" (((++) ", rootUri: ") . show ) rootUri
+    ws      = fromMaybe [] workspaceFolders
+    folders = fold (\acc cur -> acc ++ ", " ++ show cur) "" ws
+  in
+    "Connected" ++ clientInfos ++ root ++ ", workspace folders: " ++ folders
+
+readRootDir :: (MonadFail m) => Maybe [WorkspaceFolder] -> m URI
+readRootDir (Just (_:_:_)) = fail "The Frege language server does not support multi root projects"
+readRootDir (Just (r:[]))  = pure r.uri
+readRootDir _              = fail "Please specify a root directory"
+
+serverInfos :: Maybe ServerInfo
+serverInfos = Just $ 
+  ServerInfo { 
+    name = "new Frege LSP"
+  , version = Just "v0.0.1"
+  }
+
+capabilities :: ServerCapabilities 
+capabilities = ServerCapabilities {
+  definitionProvider = True 
+, textDocumentSync   = TextDocumentSyncOptions {
+    openClose = True
+  , change = Full 
+  , save = SaveOptions { includeText = True }
+  }
+, completionProvider = CompletionOptions {
+    triggerCharacters = ["."]
+  , resolveProvider   = False
+  }
+, hoverProvider = True
+}

@@ -1,0 +1,29 @@
+module ch.fhnw.fregels.effects.MonadDebounce where
+
+import Control.monad.trans.MonadIO(MonadIO(liftIO))
+import Control.monad.trans.EitherT(EitherT())
+import ch.fhnw.fregels.effects.MonadEnv(MonadEnv(setWaitForCompilationRef))
+import ch.fhnw.fregels.AppM(runAppM, AppM, AppStateM)
+
+import Control.monad.State(StateT())
+import Control.monad.trans.MonadTrans(lift)
+
+class (Monad m) => MonadDebounce m  where
+  compileDebounced :: m () -> m ()
+
+instance (Monad AppStateM) => MonadDebounce AppM where
+  compileDebounced action = do
+    state     <- lift StateT.get
+    debouncer <- liftIO $ CompileDebouncer.new 50
+    runnable  <- liftIO $ Runnable.new
+      (do
+        _ <- runAppM state action
+        pure ()
+      )
+    liftIO $ debouncer.trigger runnable
+    setWaitForCompilationRef True
+
+private data CompileDebouncer = native ch.fhnw.fregels.effects.CompileDebouncer where
+  native new      :: Int -> IOMutable CompileDebouncer 
+  native trigger  :: MutableIO CompileDebouncer -> MutableIO Runnable -> IO ()
+  native shutdown :: MutableIO CompileDebouncer -> IO ()

@@ -1,0 +1,52 @@
+module ch.fhnw.fregels.effects.MonadGlobals where
+
+import Compiler.types.Global(Global())
+import Control.concurrent.STM(atomically, TVar())
+import Control.monad.State(StateT())
+import Control.monad.trans.MonadIO(MonadIO(liftIO))
+import Control.monad.trans.EitherT(EitherT())
+import Control.monad.trans.MonadTrans(lift)
+import Data.HashMap(HashMap(), union)
+
+import ch.fhnw.fregels.AppM(AppM, AppStateM, accessM, ServerState())
+import ch.fhnw.fregels.effects.MonadEnv(MonadEnv(waitingForCompilationRef))
+import ch.fhnw.fregels.effects.MonadLog(MonadLog(logInfo))
+import ch.fhnw.fregels.messages.GeneralLspTypes(URI())
+
+class Monad m => MonadGlobals m where
+  readGlobals        :: () -> m (HashMap URI Global)
+  addGlobals         :: HashMap URI Global -> m ()
+  projectGlobal      :: () -> m (Maybe Global)
+  waitForCompilation :: Long -> m ()
+
+instance (Monad AppStateM) => MonadGlobals AppM where
+  projectGlobal _ = accessM _.projectGlobal
+  readGlobals _ = do
+    globals <- accessM _.globals
+    liftIO $ atomically (TVar.read globals)
+  addGlobals newGlobals = do
+    globals <- lift $ fmap (_.globals) StateT.get
+    liftIO $ atomically do
+      current <- TVar.read globals
+      let result = union newGlobals current
+      globals.write result
+  {--
+    This function reads the `watingForCompilation` state from `ServerState`. If this
+    TVar is set to `true` it blocks the current thread by sleeping for a short 
+    period. Specify a suitable `maxWaitTime` which is the max amount of time 
+    following computations in the monadic sequencing may be deferred.
+  -}
+  waitForCompilation maxWaitTime
+    | maxWaitTime < waitMsPerTry -> do 
+        logInfo $ "Waited for " ++ "ms for compilation to complete, giving up."
+        pure ()
+    | otherwise -> do
+        waiting <- isWaiting
+        if waiting then do
+          logInfo $ "Waiting for Compilation to complete"
+          liftIO $ Thread.sleep waitMsPerTry
+          waitForCompilation (maxWaitTime - waitMsPerTry)
+        else pure ()
+    where
+      waitMsPerTry = 100
+      isWaiting = waitingForCompilationRef () >>= liftIO . atomically . TVar.read 

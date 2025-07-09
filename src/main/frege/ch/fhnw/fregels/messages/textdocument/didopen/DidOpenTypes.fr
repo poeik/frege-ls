@@ -1,0 +1,12 @@
+module ch.fhnw.fregels.messages.textdocument.didopen.DidOpenTypes where
+
+import Data.JSON
+
+import ch.fhnw.fregels.messages.GeneralLspTypes
+
+data DidOpenRequestParams = DidOpenRequestParams { textDocument :: TextDocumentItem }
+
+instance FromJSON DidOpenRequestParams where
+  fromJSON (Struct as) = fmap DidOpenRequestParams $ field "textDocument" as
+  fromJSON garbage     = fail ("couldn't decode DidOpenRequestParams from: " ++ show garbage)
+

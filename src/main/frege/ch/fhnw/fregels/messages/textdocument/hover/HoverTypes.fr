@@ -1,0 +1,29 @@
+module ch.fhnw.fregels.messages.textdocument.hover.HoverTypes where
+
+import Data.JSON(FromJSON(fromJSON),ToJSON(toJSON), Value(Struct), field)
+
+import ch.fhnw.fregels.messages.GeneralLspTypes(TextDocument, Position, MarkupContent, Range)
+
+data HoverRequestParams = HoverRequestParams { 
+  textDocument :: TextDocument
+, position     :: Position 
+}
+derive Show HoverRequestParams
+
+data HoverResult = HoverResult {
+  contents :: MarkupContent
+, range    :: Range
+}
+derive Show HoverResult
+
+instance FromJSON HoverRequestParams where
+  fromJSON (Struct as) = HoverRequestParams <$> field "textDocument" as <*> field "position" as
+  fromJSON garbage     = fail ("couldn't decode HoverRequestParams from: " ++ show garbage)
+
+instance ToJSON HoverResult where
+  toJSON HoverResult { contents, range } =
+    Struct [
+      ("contents", toJSON contents)
+    , ("range",    toJSON range)
+    ]
+

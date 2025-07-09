@@ -1,0 +1,13 @@
+module ch.fhnw.fregels.messages.exit.Exit where
+
+import ch.fhnw.fregels.effects.MonadLog(MonadLog(logInfo))
+import ch.fhnw.fregels.effects.MonadSystem(MonadSystem(systemExit))
+
+processExitNotification :: (
+    MonadLog m
+  , MonadSystem m
+  ) => m ()
+processExitNotification = do 
+    logInfo "Shutting down Frege LSP"
+    systemExit ()
+

@@ -1,0 +1,55 @@
+module ch.fhnw.fregels.messages.textdocument.publishdiagnostics.PublishDiagnostics where
+
+import Compiler.types.Global(Global, Message, Severity(HINT, WARNING, ERROR))
+import Compiler.types.Positions as P()
+
+import ch.fhnw.fregels.effects.MonadLog(MonadLog(logInfo))
+import ch.fhnw.fregels.effects.MonadGlobals(MonadGlobals(readGlobals))
+import ch.fhnw.fregels.effects.MonadSendMessage(MonadSendMessage(sendServerMessage))
+
+import ch.fhnw.fregels.messages.textdocument.publishdiagnostics.PublishDiagnosticsTypes(Diagnostic, DiagnosticSeverity(Hint, Warning, Error), PublishDiagnosticsParams)
+import ch.fhnw.fregels.messages.GeneralLspTypes(Range(Range), Position(Position), URI(), FileVersion())
+import ch.fhnw.fregels.messages.MessageTypes(ServerMessage(PublishDiagnosticsNotification))
+import ch.fhnw.fregels.utils.Utils(asFail, findGlobal)
+
+publishDiagnosticsNotification :: (
+    MonadFail        m
+  , MonadGlobals     m
+  , MonadLog         m
+  , MonadSendMessage m
+  ) => URI -> Maybe FileVersion -> m ()
+publishDiagnosticsNotification uri version = do
+  globals <- readGlobals ()
+  global  <- asFail $ findGlobal uri globals 
+  logInfo $ "publishing " ++ (show . length) global.sub.messages ++ " diagnostics for " ++ show uri.path
+  let params = diagnosticParams uri version global.sub.messages
+  sendServerMessage (PublishDiagnosticsNotification params)
+
+diagnosticParams :: URI -> Maybe FileVersion -> [Message] -> PublishDiagnosticsParams
+diagnosticParams uri version messages = 
+    PublishDiagnosticsParams {
+      uri         = uri
+    , version     = version
+    , diagnostics = diagnostics
+    }
+    where
+      diagnostics = map messageToDiagnostic messages
+
+messageToDiagnostic :: Message -> Diagnostic
+messageToDiagnostic message = Diagnostic {
+  range    = positionToRange message.pos
+, severity = fregeSeverityToDiagnosticSeverity message.level
+, message  = message.text
+, source   = "freege"
+}
+
+fregeSeverityToDiagnosticSeverity :: Severity -> DiagnosticSeverity
+fregeSeverityToDiagnosticSeverity HINT    = Hint
+fregeSeverityToDiagnosticSeverity WARNING = Warning
+fregeSeverityToDiagnosticSeverity ERROR   = Error
+
+positionToRange :: P.Position -> Range
+positionToRange position = Range { start, end } 
+  where 
+    start = Position { line = position.first.line , character = position.first.col }
+    end   = Position { line = position.last.line  , character = position.last.col + position.last.length }

@@ -1,0 +1,141 @@
+module ch.fhnw.fregels.messages.initialize.InitializeTypes where
+
+import ch.fhnw.fregels.messages.GeneralLspTypes
+
+import Data.JSON
+
+data InitializeRequestParams = InitializeRequestParams {
+  processId        :: Int
+, clientInfo       :: Maybe ClientInfo
+, workspaceFolders :: Maybe [WorkspaceFolder]
+, rootUri          :: Maybe URI
+}
+
+data WorkspaceFolder = WorkspaceFolder {
+  name :: String
+, uri  :: URI
+}
+
+instance Show WorkspaceFolder where
+  show folder = concat [folder.name, ": ", show folder.uri]
+
+data ClientInfo = ClientInfo {
+  name    :: String,
+  version :: Maybe String
+}
+
+data InitializeResult = InitializeResult {
+  capabilities :: ServerCapabilities,
+  serverInfo   :: Maybe ServerInfo
+}
+
+derive Show InitializeResult
+
+data ServerInfo = ServerInfo {
+  name    :: String,
+  version :: Maybe String
+}
+derive Show ServerInfo
+
+data ServerCapabilities = ServerCapabilities { 
+  definitionProvider :: Bool
+, textDocumentSync   :: TextDocumentSyncOptions
+, completionProvider :: CompletionOptions
+, hoverProvider      :: Bool
+}
+
+derive Show ServerCapabilities
+
+data TextDocumentSyncOptions = TextDocumentSyncOptions {
+  openClose :: Bool
+, change    :: TextDocumentSyncKind
+, save      :: SaveOptions
+}
+derive Show TextDocumentSyncOptions
+
+data TextDocumentSyncKind = Full | None | Incremental
+derive Show TextDocumentSyncKind
+
+data SaveOptions = SaveOptions { includeText :: Bool }
+derive Show SaveOptions
+
+data CompletionOptions = CompletionOptions {
+  triggerCharacters :: [String]
+, resolveProvider   :: Bool
+}
+derive Show CompletionOptions
+
+-------------  FromJSON instances ------------- 
+
+instance FromJSON InitializeRequestParams where
+  fromJSON (Struct as) = do
+    processId        <- field    "processId" as
+    clientInfo       <- optional "clientInfo" as
+    workspaceFolders <- optional "workspaceFolders" as
+    rootUri          <- optional "rootUri" as
+    pure InitializeRequestParams {
+      processId        = processId
+    , workspaceFolders = workspaceFolders
+    , rootUri          = rootUri
+    , clientInfo       = clientInfo 
+    }
+  fromJSON garbage = fail ("couldn't decode MsgInitalizeParams from: " ++ show garbage)
+
+instance FromJSON ClientInfo where
+  fromJSON (Struct as) = do
+    name    <- field "name" as
+    version <- field "version" as
+    pure ClientInfo { name, version }
+  fromJSON garbage = fail ("couldn't decode ClientInfo from: " ++ show garbage)
+
+instance FromJSON WorkspaceFolder where
+  fromJSON (Struct as) = do
+    name   <- field "name" as
+    uri    <- field "uri" as
+    pure WorkspaceFolder { name = name, uri = uri}
+  fromJSON garbage = fail ("couldn't decode WorkspaceFolder from: " ++ show garbage)
+
+-------------  ToJSON instances ------------- 
+
+instance ToJSON InitializeResult where
+  toJSON InitializeResult { capabilities, serverInfo } =
+    Struct ( [ ("capabilities", toJSON capabilities) ]
+             ++ maybe [] (\si -> [("serverInfo", toJSON si)]) serverInfo )
+
+instance ToJSON ServerInfo where
+  toJSON ServerInfo { name, version } =
+    Struct ( [ ("name", toJSON name) ]
+             ++ maybe [] (\v -> [("version", toJSON v)]) version )
+
+instance ToJSON TextDocumentSyncOptions where
+  toJSON (TextDocumentSyncOptions openClose change save) =
+    Struct [
+      ("openClose", toJSON openClose)
+    , ("change",    toJSON change)
+    , ("save",      toJSON save)
+    ]
+
+instance ToJSON TextDocumentSyncKind where
+  toJSON None        = Number "0"
+  toJSON Full        = Number "1"
+  toJSON Incremental = Number "2"
+
+instance ToJSON SaveOptions where
+  toJSON (SaveOptions includeText) = 
+    Struct [("includeText", toJSON includeText)]
+
+instance ToJSON CompletionOptions where
+  toJSON (CompletionOptions triggerCharacters resolveProvider) = 
+    Struct [
+      ("triggerCharacters", toJSON triggerCharacters)
+    , ("resolveProvider", toJSON resolveProvider)
+    ]
+
+instance ToJSON ServerCapabilities where
+  toJSON (ServerCapabilities definitionProvider textDocumentSync completionProvider hoverProvider) = 
+    Struct [
+      ("definitionProvider", toJSON definitionProvider)
+    , ("textDocumentSync"  , toJSON textDocumentSync)
+    , ("completionProvider", toJSON completionProvider)
+    , ("hoverProvider"     , toJSON hoverProvider)
+    ]

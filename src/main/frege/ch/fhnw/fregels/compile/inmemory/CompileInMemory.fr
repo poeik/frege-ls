@@ -1,0 +1,22 @@
+module ch.fhnw.fregels.compile.inmemory.CompileInMemory where
+
+import ch.fhnw.fregels.compile.CompileMakeMode
+import Control.Concurrent as C()
+import Data.TreeMap as TM(TreeMap, values)
+import Compiler.types.Packs(Pack)
+import Compiler.types.Global(Global, changeSTT, liftIO, StIO)
+import Control.monad.State(evalStateT)
+
+compileFileMakeInMemory :: String -> String -> StIO [Global]
+compileFileMakeInMemory filepath sourceCode = do
+    changeSTT _.{options <- _.{source = filepath}}
+    source      = ParseMe { source = Content { path=filepath, content=sourceCode }, force = True }
+    todos       = TreeMap.insert empty (Pack.new filepath) source
+    mvar        <- liftIO C.MVar.newEmpty
+    allTodos    <- parseAll mvar todos 
+    doneTodos   <- make mvar allTodos
+    neededTodos = ignoreFailedTodosWithoutSource doneTodos
+    pure $ map (\t -> t.global) (values neededTodos)
+
+compileMakeInMemory :: String -> String -> Global -> IO [Global]
+compileMakeInMemory fileUri sourceCode = evalStateT $ compileFileMakeInMemory fileUri sourceCode

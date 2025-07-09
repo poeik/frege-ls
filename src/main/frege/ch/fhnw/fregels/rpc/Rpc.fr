@@ -1,0 +1,27 @@
+module ch.fhnw.fregels.rpc.Rpc where
+
+import Data.JSON
+
+encodeMessage :: ToJSON a => a -> String
+encodeMessage a = 
+  let
+    msg   = show $ toJSON a
+    bytes = getBytes msg
+    length = bytes.length
+  in
+    toMessage length msg
+  where
+    toMessage :: Int -> String -> String
+    toMessage bs msg = "Content-Length: " ++ show bs ++ "\r\n\r\n" ++ msg
+
+decodeMessage ::FromJSON a => String -> Either String a
+decodeMessage = parseJSON
+  
+extractMessageLength :: String -> Int
+extractMessageLength = read . packed . extractNumber . unpacked
+  where
+    extractNumber = dropWhitespace . dropLengthPrefix
+    dropLengthPrefix = dropWhile (!= ' ')
+    dropWhitespace = drop 1
+
+pure native getBytes getBytes :: String -> JArray Byte

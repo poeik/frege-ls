@@ -1,0 +1,15 @@
+module ch.fhnw.fregels.compile.inmemory.CompileInMemorySpec where
+
+import Test.QuickCheck(Property, once, morallyDubiousIOProperty)
+import ch.fhnw.fregels.compile.CompileGlobal()
+import ch.fhnw.fregels.compile.CompileOptions(standardCompileOptions)
+import ch.fhnw.fregels.compile.inmemory.CompileInMemory(compileMakeInMemory)
+
+shouldCompileModuleWithInMemoryRepresentation :: Property
+shouldCompileModuleWithInMemoryRepresentation = once $ morallyDubiousIOProperty do
+    let inMemoryContent = "module FregeMakeInmemoryModeTest where\r\n\r\nsquare2 x = x * x"
+    global        <- CompileGlobal.fromOptions standardCompileOptions.{ 
+                        sourcePath = [ "./src/main/resources/test" ] 
+                     }
+    globals       <- compileMakeInMemory "./src/main/resources/test/FregeMakeInmemoryModeTest.fr" inMemoryContent global
+    pure $ all (\global -> global.errors == 0 && global.sub.code.toString == inMemoryContent) globals

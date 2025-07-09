@@ -16,6 +16,7 @@ frege {
     testModules = [
       'ch.fhnw.fregels.compile.CompileMakeMode'
     , 'ch.fhnw.fregels.compile.CompileNormalMode'
+    , 'ch.fhnw.fregels.compile.inmemory.CompileInMemorySpec'
     , 'ch.fhnw.fregels.messages.textdocument.didchange.DidChangeSpec'
     , 'ch.fhnw.fregels.messages.GeneralLspTypesSpec'
     , 'ch.fhnw.fregels.rpc.RpcSpec'

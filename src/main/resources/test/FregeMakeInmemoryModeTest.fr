@@ -1,0 +1,3 @@
+module FregeMakeInmemoryModeTest where
+
+square x = x * x

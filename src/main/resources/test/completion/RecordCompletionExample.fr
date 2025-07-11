@@ -1,0 +1,5 @@
+module ch.fhnw.test.recordcompletion.RecordCompletionExample where
+data X = X { test :: String }
+x = X { test = "hello" }
+y = x
+

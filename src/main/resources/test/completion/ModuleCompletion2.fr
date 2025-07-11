@@ -1,0 +1,3 @@
+module completion.ModuleCompletion2 where
+import completion.ModuleCompletion1 as IM()
+y = IM

@@ -1,0 +1,101 @@
+module ch.fhnw.fregels.messages.textdocument.completion.CompletionSpec where
+
+import Compiler.types.Global(Global())
+import Data.HashMap(HashMap(), union, values, keys)
+import Test.QuickCheck(Property, once, morallyDubiousIOProperty, ==>, property)
+
+import ch.fhnw.fregels.compile.CompileMakeMode(compileMake)
+import ch.fhnw.fregels.compile.CompileGlobal(standardCompileGlobal)
+import ch.fhnw.fregels.compile.CompileOptions(standardCompileOptions)
+import ch.fhnw.fregels.messages.textdocument.completion.Completion(processCompletionRequest)
+import ch.fhnw.fregels.messages.textdocument.completion.CompletionTypes(CompletionRequestParams(CompletionRequestParams), CompletionContext(CompletionContext))
+import ch.fhnw.fregels.messages.GeneralLspTypes(TextDocument(TextDocument), Position(Position), MarkupContent(MarkupContent), URI())
+import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment, expectRight)
+
+completionRequestParams :: CompletionRequestParams
+completionRequestParams = CompletionRequestParams {
+  context      = Just completionContext
+, textDocument = textDocument
+, position     = position
+}
+
+completionContext :: CompletionContext
+completionContext = CompletionContext { triggerCharacter = Just "." }
+
+textDocument :: TextDocument
+textDocument = TextDocument { uri = URI.fromString "this/is/a/file.fr" }
+
+position :: Position
+position = Position { line = 1, character = 3 }
+
+initialEnvironment = initializeEnvironment Nothing
+
+p_ShouldNotReturnCompletionsWithWrongTriggerChar :: Property
+p_ShouldNotReturnCompletionsWithWrongTriggerChar = property $ \str ->
+  str /= (Just ".") ==> 
+    let
+      params = completionRequestParams.{ context = (Just completionContext.{ triggerCharacter = str }) }
+      (result, _) = TestAppM.run initialEnvironment $ processCompletionRequest params
+    in
+     expectRight result $ (\r -> r.items == [])
+
+p_ShouldWaitForCompilation :: Property
+p_ShouldWaitForCompilation =
+    let
+      (_, env) = TestAppM.run initialEnvironment $ processCompletionRequest completionRequestParams
+    in
+     once $ 
+       env.waitingForCompilationCalls == 1
+
+
+-- We need to compile a file to proper test this and thus use a morallyDubiousIOProperty
+p_ShouldReturnCompletionResultForRecord :: Property
+p_ShouldReturnCompletionResultForRecord = morallyDubiousIOProperty $ do
+  newEnv        <- compileFiles [file] initialEnvironment
+  -- prepare the completion request params
+  let dotPos       = Position { line = 4, character = 7 }
+  let textDocument = TextDocument { uri = URI.fromString file }
+  let params       = completionRequestParams.{ position = dotPos, textDocument = textDocument }
+
+  -- run the actual code
+  (result, _) = TestAppM.run newEnv $ processCompletionRequest params
+
+  pure . once $ expectRight result $ (\r -> 
+         r.isIncomplete == False 
+      && r.items.length == 3 
+    )
+  where
+    file = "./src/main/resources/test/completion/RecordCompletionExample.fr"
+
+p_ShouldReturnCompletionResultForModule :: Property
+p_ShouldReturnCompletionResultForModule = morallyDubiousIOProperty $ do
+  newEnv <- compileFiles files initialEnvironment
+  -- prepare the completion request params
+  let dotPos       = Position { line = 3, character = 8 }
+  let textDocument = TextDocument { uri = URI.fromString (head $ reverse files) }
+  let params       = completionRequestParams.{ position = dotPos, textDocument = textDocument }
+
+  -- run the actual code
+  (result, _) = TestAppM.run newEnv $ processCompletionRequest params
+
+  pure . once $ expectRight result $ (\r -> 
+         r.isIncomplete == False 
+      && r.items.length == 1 
+    )
+  where
+    files = [
+        "src/main/resources/test/completion/ModuleCompletion1.fr"
+      , "src/main/resources/test/completion/ModuleCompletion2.fr"
+     ]
+
+compileFiles :: [String] -> TestEnv a -> IO (TestEnv a)
+compileFiles files initial = foldM compileOne initial files
+ where
+  compileOne :: TestEnv a -> String -> IO (TestEnv a)
+  compileOne env file = do
+    compileGlobal    <- CompileGlobal.fromOptions standardCompileOptions.{sourcePath = [ "src/main/resources/test/" ] }
+    -- let's compile the file
+    fileGlobals   <- compileMake file compileGlobal
+    let kv        = map (\g -> (URI.fromGlobal g, g)) fileGlobals
+        newbies   = HashMap.fromList kv
+    pure env.{ globals <- (union newbies) }

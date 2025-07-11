@@ -69,6 +69,8 @@ data URI = private URI { path :: String } where
     where 
       path = concat [root, "/", head g.sourcePath, replaceDotWithSlash (Global.unpack g p), ".fr"] 
       replaceDotWithSlash s = s.replace '.' '/'
+  empty :: URI 
+  empty = URI ""
   fromString      :: String -> URI
   fromString path  = case unpacked path of
         'f':'i':'l':'e':':':'/':'/': uri -> fromString $ packed uri

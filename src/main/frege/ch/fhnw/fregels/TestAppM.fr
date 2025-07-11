@@ -103,10 +103,7 @@ instance MonadCompile (TestAppM st) where
     else Just $ globalFromFile content uri mockCompileGlobal
 
 instance MonadEnv (TestAppM st) where
-  -- projectRoot              _   = do
-  --   projGlobal <- TestAppM.access _.projectGlobal
-  --   pure . Just . URI.fromString $ "src/main/frege" -- $ head projGlobal.sourcePath
-  projectRoot              _   = pure . Just . URI.fromString $ ""
+  projectRoot              _   = pure . Just $ URI.empty
   setWaitForCompilationRef value = 
     TestAppM.modify _.{ waitForCompilationHistory <- ((:) value) }
 

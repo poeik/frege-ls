@@ -1,0 +1,3 @@
+module completion.ModuleCompletion1 where
+data X = X { test :: String }
+x = X { test = "hello" }

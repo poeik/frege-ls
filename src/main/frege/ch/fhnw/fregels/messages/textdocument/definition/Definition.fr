@@ -119,7 +119,6 @@ getFile sourceGlobal sourceSymbol m = do
         logInfo "The requested symbol is a local definition"
         let fileUri = URI.fromGlobal sourceGlobal
         pure (fileUri, sourceSymbol)
-        undefined
       name -> do
         let pack = name.getpack
         file <- asFail (URI.fromPackage r sourceGlobal pack)

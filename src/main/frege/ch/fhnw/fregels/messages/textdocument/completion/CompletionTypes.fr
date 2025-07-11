@@ -21,6 +21,7 @@ data CompletionList = CompletionList {
 , items        :: [CompletionItem]
 }
 derive Show CompletionList
+derive Eq CompletionList
 
 data CompletionItem = CompletionItem {
   label         :: String
@@ -28,9 +29,11 @@ data CompletionItem = CompletionItem {
 , documentation :: MarkupContent
 }
 derive Show CompletionItem
+derive Eq CompletionItem
 
 data CompletionItemKind = Function      
 derive Show CompletionItemKind
+derive Eq CompletionItemKind
 
 -------------  FromJSON instances ------------- 
 

@@ -14,7 +14,7 @@ class (Monad m) => MonadDebounce m  where
 instance (Monad AppStateM) => MonadDebounce AppM where
   compileDebounced action = do
     state     <- lift StateT.get
-    debouncer <- liftIO $ CompileDebouncer.new 50
+    debouncer <- liftIO $ CompileDebouncer.new 300
     runnable  <- liftIO $ Runnable.new
       (do
         _ <- runAppM state action

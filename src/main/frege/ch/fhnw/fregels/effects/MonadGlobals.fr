@@ -9,7 +9,6 @@ import Control.monad.trans.MonadTrans(lift)
 import Data.HashMap(HashMap(), union)
 
 import ch.fhnw.fregels.AppM(AppM, AppStateM, accessM, ServerState())
-import ch.fhnw.fregels.effects.MonadEnv(MonadEnv(waitingForCompilationRef))
 import ch.fhnw.fregels.effects.MonadLog(MonadLog(logInfo))
 import ch.fhnw.fregels.messages.GeneralLspTypes(URI())
 
@@ -49,4 +48,4 @@ instance (Monad AppStateM) => MonadGlobals AppM where
         else pure ()
     where
       waitMsPerTry = 100
-      isWaiting = waitingForCompilationRef () >>= liftIO . atomically . TVar.read 
+      isWaiting = accessM _.waitForCompilation >>= liftIO . atomically . TVar.read 

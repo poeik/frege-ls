@@ -40,6 +40,7 @@ completionList :: (
   , MonadEnv     m
   , MonadFail    m
   , MonadGlobals m
+  , MonadLog     m
   ) => CompletionRequestParams -> m [CompletionItem]
 completionList params = do
   globals     <- readGlobals ()

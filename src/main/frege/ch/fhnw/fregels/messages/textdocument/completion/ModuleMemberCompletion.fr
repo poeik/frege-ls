@@ -8,6 +8,7 @@ import Compiler.types.Tokens(Token, KeyTk)
 import ch.fhnw.fregels.effects.MonadCompile(MonadCompile(compileFile))
 import ch.fhnw.fregels.effects.MonadEnv(MonadEnv(projectRoot))
 import ch.fhnw.fregels.effects.MonadGlobals(MonadGlobals(readGlobals))
+import ch.fhnw.fregels.effects.MonadLog(MonadLog(logInfo))
 import ch.fhnw.fregels.messages.GeneralLspTypes(URI())
 import ch.fhnw.fregels.messages.textdocument.completion.CompletionTypes(CompletionItem(CompletionItem), CompletionItemKind(Function))
 import ch.fhnw.fregels.utils.Documentation(documentSymbol)
@@ -18,6 +19,7 @@ findModuleMembers :: (
   , MonadEnv     m
   , MonadFail    m
   , MonadGlobals m
+  , MonadLog m
   ) => Token -> Global -> m [CompletionItem]
 findModuleMembers token sourceGlobal = do
   target <- findGlobalForModule token.value sourceGlobal
@@ -49,8 +51,10 @@ findGlobalForModule :: (
   , MonadEnv     m
   , MonadFail    m
   , MonadGlobals m
+  , MonadLog     m
   ) => String -> Global -> m (Maybe Global)
 findGlobalForModule moduleName sourceGlobal = do
+  logInfo $ "Looking for members of module: " ++ moduleName
   uri  <- findFileUriForImportedModule moduleName sourceGlobal
   g    <- findOrLoadGlobal uri
   pure g
@@ -59,6 +63,7 @@ findFileUriForImportedModule :: (
     MonadEnv     m 
   , MonadFail    m
   , MonadGlobals m
+  , MonadLog     m
   ) => String -> Global -> m URI
 findFileUriForImportedModule moduleName sourceGlobal = do
   let mod = NSX moduleName
@@ -68,6 +73,7 @@ findFileUriForImportedModule moduleName sourceGlobal = do
     Nothing  -> fail ("Could not find module " ++ show moduleName)
     Just ps  -> pure ps
   uri  <- asFail $ rootPath.fromPackage sourceGlobal pack
+  logInfo $ "This module alias/name belongs to package: " ++ pack.raw ++ " with URI: " ++ uri.path
   pure uri
 
 findOrLoadGlobal :: (

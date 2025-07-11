@@ -1,11 +1,27 @@
 module ch.fhnw.fregels.TestAppM where
 
+import Compiler.types.Global(Global(Global), Options(), Sub)
+import Compiler.types.Packs(Pack())
+import Compiler.types.Positions(Position())
+import Compiler.common.CompilerOptions(initialGen)
 import Control.monad.State(State(), promote)
 import Control.monad.trans.EitherT(EitherT(EitherT), left)
 import Control.monad.trans.MonadTrans(lift)
 
-import ch.fhnw.fregels.effects.MonadLog(MonadLog(logInfo))
-import ch.fhnw.fregels.effects.MonadSystem(MonadSystem(systemExit))
+import Data.HashMap(HashMap(), union)
+import Data.TreeMap(TreeMap())
+import Java.IO()
+
+import ch.fhnw.fregels.compile.CompileOptions(standardCompileOptions)
+import ch.fhnw.fregels.effects.MonadDebounce(MonadDebounce())
+import ch.fhnw.fregels.effects.MonadEnv(MonadEnv())
+import ch.fhnw.fregels.effects.MonadGlobals(MonadGlobals())
+import ch.fhnw.fregels.effects.MonadLog(MonadLog())
+import ch.fhnw.fregels.effects.MonadSystem(MonadSystem())
+import ch.fhnw.fregels.effects.MonadSendMessage(MonadSendMessage())
+import ch.fhnw.fregels.effects.MonadCompile(MonadCompile())
+import ch.fhnw.fregels.messages.GeneralLspTypes(URI())
+import ch.fhnw.fregels.messages.MessageTypes(ServerMessage())
 
 {- 
                           -- Testing --
@@ -15,11 +31,27 @@ and instances of the effects which give us the possibility to test them.
 -}
 
 data TestEnv a = TestEnv {
-  --- This field is intended to store side effects appearing during a test run
-  sideeffect :: a 
+  sideeffect                  :: a      --- This field is intended to store side effects appearing during a test run
+  waitingForCompilationCalls  :: Int    --- increased when somebody uses the waitingForCompilation
+  compileDebouncedCalls       :: Int --- increased when somebody uses the compileDebounced effect
+  waitForCompilationHistory   :: [Bool] --- collects the state of wait 
+  logs                        :: [String] --- collects all logs during the test
+  globals                     :: HashMap URI Global --- all compile globals we collected so far
+  projectGlobal               :: Global --- the current projectGlobal
+  sentMessages                :: [ServerMessage] --- all messages our server has sent to the client
 }
 
-initializeEnvironment s = TestEnv { sideeffect = s }
+initializeEnvironment s = TestEnv 
+  { 
+    sideeffect                 = s 
+  , waitingForCompilationCalls = 0 
+  , compileDebouncedCalls      = 0
+  , waitForCompilationHistory  = []
+  , logs                       = []
+  , globals                    = HashMap.empty
+  , projectGlobal              = mockCompileGlobal
+  , sentMessages               = []
+  }
 
 type TestState a = State (TestEnv a)
 
@@ -51,11 +83,103 @@ instance Monad (TestAppM st) where
 instance MonadFail (TestAppM st) where
   fail = TestAppM . EitherT . return . Left
 
-
 --- We do not test logging, but simply ignore it
 instance MonadLog (TestAppM st) where
-  logInfo str = pure ()
+  logInfo str = 
+    TestAppM.modify _.{ logs <- ((:) str) }
 
 instance MonadSystem (TestAppM Int) where
   systemExit _ =
     TestAppM.modify _.{ sideeffect <- (+1) }
+
+instance MonadCompile (TestAppM st) where
+  --- uri with empty path leads to Nothing
+  compileFile uri = pure $ 
+    if uri.path == "" then Nothing
+    else Just $ globalFromFile "" uri mockCompileGlobal
+  --- empty content leads to Nothing
+  compileInMemory content uri = pure $ 
+    if content == "" then Nothing 
+    else Just $ globalFromFile content uri mockCompileGlobal
+
+instance MonadEnv (TestAppM st) where
+  -- projectRoot              _   = do
+  --   projGlobal <- TestAppM.access _.projectGlobal
+  --   pure . Just . URI.fromString $ "src/main/frege" -- $ head projGlobal.sourcePath
+  projectRoot              _   = pure . Just . URI.fromString $ ""
+  setWaitForCompilationRef value = 
+    TestAppM.modify _.{ waitForCompilationHistory <- ((:) value) }
+
+instance MonadGlobals (TestAppM st) where
+  readGlobals        _       = TestAppM.access _.globals
+  addGlobals         newbies = TestAppM.modify _.{ globals <- (union newbies) }
+  projectGlobal      _       = fmap Just $ TestAppM.access _.projectGlobal
+  waitForCompilation millis  =
+    TestAppM.modify _.{ waitingForCompilationCalls <- (+1) }
+
+instance MonadSendMessage (TestAppM st) where
+  sendServerMessage msg = TestAppM.modify _.{ sentMessages <- ((:) msg) }
+
+instance MonadDebounce (TestAppM st) where
+  compileDebounced action = do
+    TestAppM.modify _.{ compileDebouncedCalls <- (+1) }
+    action
+
+private globalFromFile :: String -> URI -> Global -> Global
+private globalFromFile content uri g = 
+  mockCompileGlobal.{ 
+    sub <- (\sub -> sub.{ 
+      thisPack = Pack.new uri.path
+    , code = CharSequence.fromString content 
+    }) 
+  }
+
+{--
+This global is 1:1 the same as a normal compile global, except that it has
+no ClassLoader and therefore no IO 
+-}
+mockCompileGlobal =
+    Global {
+            options = standardCompileOptions,
+            sub = Sub {
+                loader = loader,
+                toks = arrayFromList [],
+                code = CharSequence.fromString "",
+                idKind = TreeMap.empty,
+                sourcedefs  = [],
+                packageDoc = Nothing,
+                thisPos  = Position.null,
+                nsPos = TreeMap.empty,
+                packWhy = TreeMap.empty,
+                nsUsed = TreeMap.empty,
+                thisPack = Pack.new "",
+                numErrors  = 0, resErrors = 0,
+                messages = [],
+                cancelled = return false,
+                nextPass = 1,
+                stderr = IO.stderr,
+                toExport = [],
+            },
+            gen = initialGen,
+            unique = 999,
+            packages = TreeMap.empty,
+            namespaces = TreeMap.empty,
+            genEnv = [],
+            javaEnv = TreeMap.empty,
+            locals = TreeMap.empty,
+            typEnv = [],
+            tySubst = TreeMap.empty,
+        }
+    where 
+      -- class loader has IO, we just replace it with `undefined` for testing purposes
+      loader = undefined
+
+--- a little helper which returns False on Left
+expectRight :: Either e r -> (r -> Bool) -> Bool
+expectRight (Left _) _ = False
+expectRight (Right r) p = p r
+
+--- a little helper which returns False on Right
+expectLeft :: Either e r -> (e -> Bool) -> Bool
+expectLeft (Left e) p = p e
+expectLeft (Right _) _ = False

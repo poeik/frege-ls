@@ -1,18 +1,17 @@
 module ch.fhnw.fregels.TestAppM where
 
-import Compiler.types.Global(Global(Global), Options(), Sub)
+import Compiler.types.Global(Global(Global), Options(), Sub, Message(Msg), Severity(ERROR))
+import Compiler.types.Positions(Position(Pos))
+import Compiler.types.Tokens(Token(Token))
 import Compiler.types.Packs(Pack())
-import Compiler.types.Positions(Position())
-import Compiler.common.CompilerOptions(initialGen)
+import Compiler.enums.TokenID(TokenID(QUALIFIER))
 import Control.monad.State(State(), promote)
 import Control.monad.trans.EitherT(EitherT(EitherT), left)
 import Control.monad.trans.MonadTrans(lift)
 
 import Data.HashMap(HashMap(), union)
-import Data.TreeMap(TreeMap())
-import Java.IO()
 
-import ch.fhnw.fregels.compile.CompileOptions(standardCompileOptions)
+import ch.fhnw.fregels.compile.FakeCompileGlobal(fakeCompileGlobal)
 import ch.fhnw.fregels.effects.MonadDebounce(MonadDebounce())
 import ch.fhnw.fregels.effects.MonadEnv(MonadEnv())
 import ch.fhnw.fregels.effects.MonadGlobals(MonadGlobals())
@@ -49,7 +48,7 @@ initializeEnvironment s = TestEnv
   , waitForCompilationHistory  = []
   , logs                       = []
   , globals                    = HashMap.empty
-  , projectGlobal              = mockCompileGlobal
+  , projectGlobal              = fakeCompileGlobal
   , sentMessages               = []
   }
 
@@ -94,13 +93,15 @@ instance MonadSystem (TestAppM Int) where
 
 instance MonadCompile (TestAppM st) where
   --- uri with empty path leads to Nothing
-  compileFile uri = pure $ 
-    if uri.path == "" then Nothing
-    else Just $ globalFromFile "" uri mockCompileGlobal
+  compileFile = compileInMemory "" 
+
   --- empty content leads to Nothing
-  compileInMemory content uri = pure $ 
-    if content == "" then Nothing 
-    else Just $ globalFromFile content uri mockCompileGlobal
+  compileInMemory content uri =
+    if uri.path == "" then pure Nothing 
+    else do
+      let global = globalFromFile content uri fakeCompileGlobal
+      TestAppM.modify _.{ globals <- (\gs -> HashMap.insert uri global gs) }
+      pure . Just $ global
 
 instance MonadEnv (TestAppM st) where
   projectRoot              _   = pure . Just $ URI.empty
@@ -124,52 +125,19 @@ instance MonadDebounce (TestAppM st) where
 
 private globalFromFile :: String -> URI -> Global -> Global
 private globalFromFile content uri g = 
-  mockCompileGlobal.{ 
+  fakeCompileGlobal.{ 
     sub <- (\sub -> sub.{ 
       thisPack = Pack.new uri.path
     , code = CharSequence.fromString content 
+    , messages = [ createMessage "error" ]
     }) 
   }
+  where
+    createMessage :: String -> Message
+    createMessage str = Msg { level = ERROR, pos = position, text = str }
+    position = Pos { first = token, last = token }
+    token    = Token { tokid = QUALIFIER, value = "x", line = 1, col = 1, offset = 1, qual = []}
 
-{--
-This global is 1:1 the same as a normal compile global, except that it has
-no ClassLoader and therefore no IO 
--}
-mockCompileGlobal =
-    Global {
-            options = standardCompileOptions,
-            sub = Sub {
-                loader = loader,
-                toks = arrayFromList [],
-                code = CharSequence.fromString "",
-                idKind = TreeMap.empty,
-                sourcedefs  = [],
-                packageDoc = Nothing,
-                thisPos  = Position.null,
-                nsPos = TreeMap.empty,
-                packWhy = TreeMap.empty,
-                nsUsed = TreeMap.empty,
-                thisPack = Pack.new "",
-                numErrors  = 0, resErrors = 0,
-                messages = [],
-                cancelled = return false,
-                nextPass = 1,
-                stderr = IO.stderr,
-                toExport = [],
-            },
-            gen = initialGen,
-            unique = 999,
-            packages = TreeMap.empty,
-            namespaces = TreeMap.empty,
-            genEnv = [],
-            javaEnv = TreeMap.empty,
-            locals = TreeMap.empty,
-            typEnv = [],
-            tySubst = TreeMap.empty,
-        }
-    where 
-      -- class loader has IO, we just replace it with `undefined` for testing purposes
-      loader = undefined
 
 --- a little helper which returns False on Left
 expectRight :: Either e r -> (r -> Bool) -> Bool
@@ -180,3 +148,5 @@ expectRight (Right r) p = p r
 expectLeft :: Either e r -> (e -> Bool) -> Bool
 expectLeft (Left e) p = p e
 expectLeft (Right _) _ = False
+
+

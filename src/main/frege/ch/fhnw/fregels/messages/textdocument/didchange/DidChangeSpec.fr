@@ -1,8 +1,12 @@
 module ch.fhnw.fregels.messages.textdocument.didchange.DidChangeSpec where
 
+import Data.HashMap(singleton)
 import Test.QuickCheck(Property, once)
 
-import ch.fhnw.fregels.messages.textdocument.didchange.DidChange(dropTrailingDots)
+import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment, expectRight)
+import ch.fhnw.fregels.messages.GeneralLspTypes(FileVersion(FileVersion), URI())
+import ch.fhnw.fregels.messages.textdocument.didchange.DidChange(dropTrailingDots, processDidChangeNotification)
+import ch.fhnw.fregels.messages.textdocument.didchange.DidChangeTypes(DidChangeNotificationParams(DidChangeNotificationParams), VersionedTextDocumentIdentifier(VersionedTextDocumentIdentifier), TextDocumentContentChangeEvent(TextDocumentContentChangeEvent))
 
 p_DropTrailingDots :: Property
 p_DropTrailingDots = 
@@ -10,5 +14,45 @@ p_DropTrailingDots =
     str       = "module examples.greeting.Greeting where\r\n \r\n import examples.greeting.bye.ByeFrege as B()\r\n import examples.compile.CompileMakeMode as C()\r\n \r\n main :: IO ()\r\n main = do\r\n println $ B.greeting \"\"\r\n println B.german2.\r\n \r\n \r\n \r\n main2 = undefined.\r\n"
     expected  = "module examples.greeting.Greeting where\r\n \r\n import examples.greeting.bye.ByeFrege as B()\r\n import examples.compile.CompileMakeMode as C()\r\n \r\n main :: IO ()\r\n main = do\r\n println $ B.greeting \"\"\r\n println B.german2\r\n \r\n \r\n \r\n main2 = undefined\r\n"
     actual    = dropTrailingDots str
-  in do
+  in
     once $ actual == expected
+
+initialEnvironment = initializeEnvironment Nothing
+
+didChangeNotificationParams = DidChangeNotificationParams {
+  textDocument = versionedTextDocumentIdentifier
+, contentChanges = [textDocumentChangeEvent]
+}
+
+versionedTextDocumentIdentifier = VersionedTextDocumentIdentifier {
+  version = FileVersion 1
+, uri     = URI.fromString "/examples/greeting/Greeting.fr"
+}
+
+textDocumentChangeEvent = TextDocumentContentChangeEvent { 
+  text = "module examples.greeting.Greeting where\r\n\r\n main :: IO ()\r\n main = println x"
+}
+
+p_ShouldCompileDebounced :: Property
+p_ShouldCompileDebounced = 
+  let (_, env) = TestAppM.run initialEnvironment $ processDidChangeNotification didChangeNotificationParams
+  in once $ env.compileDebouncedCalls == 1
+
+p_ShouldSendDiagnosticsAfterChange :: Property
+p_ShouldSendDiagnosticsAfterChange = 
+  let 
+    (result, env) = TestAppM.run initialEnvironment $ processDidChangeNotification didChangeNotificationParams
+  in
+    once $ 
+      env.sentMessages.length == 1 &&
+      expectRight result (const True)
+
+p_ShouldCompileChangedFile :: Property
+p_ShouldCompileChangedFile =
+  let 
+    (_, env) = TestAppM.run initialEnvironment $ processDidChangeNotification didChangeNotificationParams
+  in
+    once $ 
+      case env.globals.lookup versionedTextDocumentIdentifier.uri of
+        Just g -> True
+        Nothing -> False

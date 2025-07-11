@@ -1,0 +1,72 @@
+module ch.fhnw.fregels.compile.FakeCompileGlobal where
+
+import Compiler.types.Global (Global, Options, SubSt)
+import Compiler.common.CompilerOptions (standardGlobal, theClassLoader)
+import Compiler.types.Packs(Pack())
+import Compiler.types.Positions(Position())
+import Compiler.common.CompilerOptions(initialGen)
+import Data.TreeMap(TreeMap())
+import Java.IO()
+import Java.Net(URLClassLoader, URL)
+import Prelude.PreludeArrays(arrayFromList)
+
+import ch.fhnw.fregels.compile.CompileOptions(standardCompileOptions)
+
+{--
+This global is 1:1 the same as a normal compile global, except that it uses a 
+dummy class loader. -}
+fakeCompileGlobal =
+    Global {
+            options = standardCompileOptions,
+            sub = Sub {
+                loader = loader,
+                toks = arrayFromList [],
+                code = CharSequence.fromString "",
+                idKind = TreeMap.empty,
+                sourcedefs  = [],
+                packageDoc = Nothing,
+                thisPos  = Position.null,
+                nsPos = TreeMap.empty,
+                packWhy = TreeMap.empty,
+                nsUsed = TreeMap.empty,
+                thisPack = Pack.new "",
+                numErrors  = 0, resErrors = 0,
+                messages = [],
+                cancelled = return false,
+                nextPass = 1,
+                stderr = IO.stderr,
+                toExport = [],
+            },
+            gen = initialGen,
+            unique = 999,
+            packages = TreeMap.empty,
+            namespaces = TreeMap.empty,
+            genEnv = [],
+            javaEnv = TreeMap.empty,
+            locals = TreeMap.empty,
+            typEnv = [],
+            tySubst = TreeMap.empty,
+        }
+    where 
+      -- class loader has IO, we just replace it with `undefined` for testing purposes
+      loader = mutable $ fakeClassLoader () -- $ FakeClassLoader.new ()
+      -- loader = undefined
+
+
+-- data FakeClassLoader2 = native ch.fhnw.fregels.compile.FakeClassLoader where
+--   native create "ch.fhnw.fregels.compile.FakeClassLoader.new" :: () -> ST s (Mutable s URLClassLoader)
+
+-- data FakeClassLoader = native ch.fhnw.fregels.compile.FakeClassLoader where
+--   pure native new "ch.fhnw.fregels.compile.FakeClassLoader.new" :: () -> FakeClassLoader
+
+-- data FakeClassLoader3 = native java.net.URLClassLoader where
+--   pure native create ch.fhnw.fregels.compile.FakeClassLoader.new :: () -> FakeClassLoader3
+  
+
+-- data FregeFX = mutable native javafx.application.Application where
+--     native launch  JavaFxUtils.FregeFX.launch :: ( Stage -> JFX () ) -> IO ()
+--     native fxml    JavaFxUtils.FregeFX.fxml   :: String -> String -> JFX Parent
+
+
+pure native fakeClassLoader ch.fhnw.fregels.compile.FakeClassLoader.classLoader :: () -> URLClassLoader
+

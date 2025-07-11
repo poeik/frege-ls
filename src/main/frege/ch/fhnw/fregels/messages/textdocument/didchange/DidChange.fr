@@ -43,8 +43,12 @@ compileAfterChange uri version content = do
   let text = dropTrailingDots content
   maybeGlobal <- compileInMemory text uri
   case maybeGlobal of
-    Just g -> publishDiagnosticsNotification uri (Just version)
-    Nothing -> pure ()
+    Just g -> do 
+      logInfo $ "compiling was successful: " ++ g.sub.code.toString
+      publishDiagnosticsNotification g (Just version)
+    Nothing -> do
+      logInfo "compiling failed"
+      pure ()
   setWaitForCompilationRef False 
 
 dropTrailingDots :: String -> String

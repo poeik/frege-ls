@@ -4,7 +4,7 @@ import Data.JSON(FromJSON(fromJSON), ToJSON(toJSON), Value(Struct), field)
 
 import ch.fhnw.fregels.messages.initialize.InitializeTypes(InitializeRequestParams, InitializeResult)
 import ch.fhnw.fregels.messages.textdocument.definition.DefinitionTypes(DefinitionRequestParams)
-import ch.fhnw.fregels.messages.textdocument.didopen.DidOpenTypes(DidOpenRequestParams)
+import ch.fhnw.fregels.messages.textdocument.didopen.DidOpenTypes(DidOpenNotificationParams)
 import ch.fhnw.fregels.messages.textdocument.didchange.DidChangeTypes(DidChangeNotificationParams)
 import ch.fhnw.fregels.messages.textdocument.completion.CompletionTypes(CompletionRequestParams, CompletionList)
 import ch.fhnw.fregels.messages.textdocument.hover.HoverTypes(HoverRequestParams, HoverResult)
@@ -18,7 +18,7 @@ data ClientMessage = InitializeRequest     { id :: Int, initParams       :: Init
                    | CompletionRequest     { id :: Int, completionParams :: CompletionRequestParams }
                    | HoverRequest          { id :: Int, hoverParams      :: HoverRequestParams } 
                    | ShutdownRequest       { id :: Int } 
-                   | DidOpenNotification   {            didOpenParams    :: DidOpenRequestParams }
+                   | DidOpenNotification   {            didOpenParams    :: DidOpenNotificationParams }
                    | DidSaveNotification   {            didSaveParams    :: DidSaveNotificationParams }
                    | DidChangeNotification {            didChangeParams  :: DidChangeNotificationParams }
                    | InitializedNotification

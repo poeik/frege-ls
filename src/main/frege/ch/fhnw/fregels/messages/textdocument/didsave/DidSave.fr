@@ -27,5 +27,5 @@ processDidSaveNotification params = do
   compileDebounced $ do
     maybeGlobal <- compileFile params.textDocument.uri
     case maybeGlobal of 
-      Just g  -> publishDiagnosticsNotification params.textDocument.uri Nothing
+      Just g  -> publishDiagnosticsNotification g Nothing
       Nothing -> pure ()

@@ -45,7 +45,7 @@ findToken pos uri globals = do
   pure (token, global)
 
 tokenToQName :: Token -> Global -> Maybe QName
-tokenToQName tok sourceGlobal = do
+tokenToQName tok sourceGlobal =
   case sourceGlobal.resolved tok of
     Just (Right qname) -> Just qname
     _ -> Nothing

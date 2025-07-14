@@ -1,0 +1,57 @@
+module ch.fhnw.fregels.messages.textdocument.hover.HoverSpec where
+
+import ch.fhnw.fregels.messages.GeneralLspTypes(URI())
+import ch.fhnw.fregels.messages.textdocument.hover.Hover(processHoverRequest, tokenToRange)
+import ch.fhnw.fregels.messages.textdocument.hover.HoverTypes(HoverRequestParams(HoverRequestParams))
+import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment)
+import ch.fhnw.fregels.utils.Testing(compileFiles, expectRight, expectLeft)
+import ch.fhnw.fregels.utils.DummyTestingValues as DV()
+
+import Test.QuickCheck(Property, property, once, morallyDubiousIOProperty, ==>)
+
+initialEnvironment = initializeEnvironment Nothing
+
+-- We need to compile a file to proper test this and thus use a morallyDubiousIOProperty
+p_ShouldProvideHoverInformation :: Property
+p_ShouldProvideHoverInformation = morallyDubiousIOProperty $ do
+  environment <- compileFiles [file] initialEnvironment
+
+  let params = HoverRequestParams { 
+    textDocument = DV.aTextDocument.{ uri = URI.fromString file }
+  , position     = DV.aPosition.{ line = 4, character = 1 }
+  }
+
+  let (result, _) = TestAppM.run environment $ processHoverRequest params
+
+  let fregeDoc = "This is `x`"
+  let typeDoc  = "x :: X"
+
+  pure $ expectRight result (\r -> 
+       r.contents.value.contains fregeDoc 
+    && r.contents.value.contains typeDoc
+    )
+    where 
+      file = "./src/main/resources/test/hover/Hover1.fr" 
+
+p_ShouldFailOnInvalidToken :: Property
+p_ShouldFailOnInvalidToken = morallyDubiousIOProperty $ do
+  environment <- compileFiles [file] initialEnvironment
+
+  let params = HoverRequestParams { 
+    textDocument = DV.aTextDocument.{ uri = URI.fromString file }
+  , position     = DV.aPosition.{ line = 4, character = 3 }
+  }
+
+  let (result, _) = TestAppM.run environment $ processHoverRequest params
+
+  pure $ expectLeft result (const True)
+    where 
+      file = "./src/main/resources/test/hover/Hover1.fr" 
+
+p_ShouldConvertTokenToRange :: Property
+p_ShouldConvertTokenToRange = property $ \line col value ->
+  line > 0 && col >=0 ==> 
+    let
+      token = DV.aFregeCompilerToken.{ line = line, col = col, value = value }
+    in
+      (tokenToRange token).end.character == col + value.length

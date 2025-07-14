@@ -1,0 +1,5 @@
+module hover.Hover1 where
+data X = X { test :: String }
+--- This is `x`
+x = X { test = "hello" }
+

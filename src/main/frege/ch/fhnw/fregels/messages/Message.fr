@@ -1,7 +1,7 @@
 module ch.fhnw.fregels.messages.Message where
 
 import ch.fhnw.fregels.messages.initialize.Initialize(processInitializeMessage)
-import ch.fhnw.fregels.messages.textdocument.definition.Definition(processDefinitionMessage)
+import ch.fhnw.fregels.messages.textdocument.definition.Definition(processDefinitionRequest)
 import ch.fhnw.fregels.messages.textdocument.didopen.DidOpen(processDidOpenNotification)
 import ch.fhnw.fregels.messages.textdocument.didsave.DidSave(processDidSaveNotification)
 import ch.fhnw.fregels.messages.textdocument.completion.Completion(processCompletionRequest)
@@ -52,7 +52,7 @@ processClientMessage :: (
   ) => ClientMessage -> m (Maybe ServerMessage)
 processClientMessage msg = case msg of
     (InitializeRequest id params)  -> fmap (Just . (InitializeResponse id)) (processInitializeMessage params)
-    (DefinitionRequest id params)  -> fmap (Just . (DefinitionResponse id)) (processDefinitionMessage params)
+    (DefinitionRequest id params)  -> fmap (Just . (DefinitionResponse id)) (processDefinitionRequest params)
     (CompletionRequest id params)  -> fmap (Just . (CompletionResponse id)) (processCompletionRequest params)
     (HoverRequest      id params)  -> fmap (Just . (HoverResponse id))      (processHoverRequest params)
     (ShutdownRequest   id)         -> (pure . Just . ShutdownResponse) id

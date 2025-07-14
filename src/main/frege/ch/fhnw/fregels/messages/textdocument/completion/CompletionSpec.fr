@@ -4,25 +4,17 @@ import Test.QuickCheck(Property, once, morallyDubiousIOProperty, ==>, property)
 
 import ch.fhnw.fregels.messages.textdocument.completion.Completion(processCompletionRequest)
 import ch.fhnw.fregels.messages.textdocument.completion.CompletionTypes(CompletionRequestParams(CompletionRequestParams), CompletionContext(CompletionContext))
-import ch.fhnw.fregels.messages.GeneralLspTypes(TextDocument(TextDocument), Position(Position), MarkupContent(MarkupContent), URI())
+import ch.fhnw.fregels.messages.GeneralLspTypes(URI())
 import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment)
 import ch.fhnw.fregels.utils.Testing(compileFiles, expectRight)
+import ch.fhnw.fregels.utils.DummyTestingValues as DV()
 
 completionRequestParams :: CompletionRequestParams
 completionRequestParams = CompletionRequestParams {
-  context      = Just completionContext
-, textDocument = textDocument
-, position     = position
+  context      = Just $ CompletionContext { triggerCharacter = Just "." }
+, textDocument = DV.aTextDocument
+, position     = DV.aPosition
 }
-
-completionContext :: CompletionContext
-completionContext = CompletionContext { triggerCharacter = Just "." }
-
-textDocument :: TextDocument
-textDocument = TextDocument { uri = URI.fromString "this/is/a/file.fr" }
-
-position :: Position
-position = Position { line = 1, character = 3 }
 
 initialEnvironment = initializeEnvironment Nothing
 
@@ -30,7 +22,7 @@ p_ShouldNotReturnCompletionsWithWrongTriggerChar :: Property
 p_ShouldNotReturnCompletionsWithWrongTriggerChar = property $ \str ->
   str /= (Just ".") ==> 
     let
-      params = completionRequestParams.{ context = (Just completionContext.{ triggerCharacter = str }) }
+      params = completionRequestParams.{ context = (Just CompletionContext { triggerCharacter = str }) }
       (result, _) = TestAppM.run initialEnvironment $ processCompletionRequest params
     in
      expectRight result $ (\r -> r.items == [])
@@ -43,14 +35,13 @@ p_ShouldWaitForCompilation =
      once $ 
        env.waitingForCompilationCalls == 1
 
-
 -- We need to compile a file to proper test this and thus use a morallyDubiousIOProperty
 p_ShouldReturnCompletionResultForRecord :: Property
 p_ShouldReturnCompletionResultForRecord = morallyDubiousIOProperty $ do
   newEnv        <- compileFiles [file] initialEnvironment
   -- prepare the completion request params
-  let dotPos       = Position { line = 4, character = 7 }
-  let textDocument = TextDocument { uri = URI.fromString file }
+  let dotPos       = DV.aPosition.{ line = 4, character = 7 }
+  let textDocument = DV.aTextDocument.{ uri = URI.fromString file }
   let params       = completionRequestParams.{ position = dotPos, textDocument = textDocument }
 
   -- run the actual code
@@ -67,8 +58,8 @@ p_ShouldReturnCompletionResultForModule :: Property
 p_ShouldReturnCompletionResultForModule = morallyDubiousIOProperty $ do
   newEnv <- compileFiles files initialEnvironment
   -- prepare the completion request params
-  let dotPos       = Position { line = 3, character = 8 }
-  let textDocument = TextDocument { uri = URI.fromString (head $ reverse files) }
+  let dotPos       = DV.aPosition.{ line = 3, character = 8 }
+  let textDocument = DV.aTextDocument.{ uri = URI.fromString (head $ reverse files) }
   let params       = completionRequestParams.{ position = dotPos, textDocument = textDocument }
 
   -- run the actual code

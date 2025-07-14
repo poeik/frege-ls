@@ -1,0 +1,79 @@
+module ch.fhnw.fregels.messages.textdocument.definition.DefinitionSpec where
+
+import Test.QuickCheck(Property, once, morallyDubiousIOProperty, ==>, property)
+
+import ch.fhnw.fregels.messages.textdocument.definition.Definition(processDefinitionRequest)
+import ch.fhnw.fregels.messages.textdocument.definition.DefinitionTypes(DefinitionRequestParams(DefinitionRequestParams))
+import ch.fhnw.fregels.messages.GeneralLspTypes(URI(), Range(Range), Position(Position))
+import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment)
+import ch.fhnw.fregels.utils.Testing(compileFiles, expectRight, failWith)
+import ch.fhnw.fregels.utils.DummyTestingValues as DV()
+
+definitionRequestParams :: DefinitionRequestParams
+definitionRequestParams = DefinitionRequestParams {
+  textDocument = DV.aTextDocument
+, position     = DV.aPosition
+}
+
+initialEnvironment = initializeEnvironment Nothing
+
+p_ShouldFindDefinitionInSameModule :: Property
+p_ShouldFindDefinitionInSameModule = morallyDubiousIOProperty $ do
+  newEnv <- compileFiles [file] initialEnvironment
+  -- prepare the definition request params
+  let cursorPos      = DV.aPosition.{ line = 3, character = 6 }
+  let currentTextDoc = DV.aTextDocument.{ uri = URI.fromString file }
+  let params         = definitionRequestParams.{ position = cursorPos, textDocument = currentTextDoc }
+
+  -- run the actual code
+  (result, _) = TestAppM.run newEnv $ processDefinitionRequest params
+
+  expectedURI   = URI.fromString file
+  expectedRange = Range { start = Position { line = 2, character = 10 }, end = Position { line = 2, character = 10 }}
+
+  pure . expectRight result $ 
+    (\location -> location.uri == expectedURI && location.range == expectedRange)
+  where
+    file = "src/main/resources/test/definition/Definition1.fr"
+
+p_ShouldFindDefinitionInDifferentModule :: Property
+p_ShouldFindDefinitionInDifferentModule = morallyDubiousIOProperty $ do
+  newEnv <- compileFiles files initialEnvironment
+  -- prepare the definition request params
+  let cursorPos      = DV.aPosition.{ line = 3, character = 5 }
+  let currentTextDoc = DV.aTextDocument.{ uri = URI.fromString (head $ reverse files) }
+  let params         = definitionRequestParams.{ position = cursorPos, textDocument = currentTextDoc }
+
+  -- run the actual code
+  (result, _) = TestAppM.run newEnv $ processDefinitionRequest params
+
+  expectedURI   = URI.fromString files.head 
+  expectedRange = Range { start = Position { line = 3, character = 1 }, end = Position { line = 3, character = 2 }}
+
+  pure . expectRight result $ 
+    (\location -> location.uri == expectedURI && location.range == expectedRange)
+  where
+    files = [
+        "src/main/resources/test/definition/Definition1.fr"
+      , "src/main/resources/test/definition/Definition2.fr"
+     ]
+
+p_ShouldCompileWhenModuleIsNotInGlobals :: Property
+p_ShouldCompileWhenModuleIsNotInGlobals = morallyDubiousIOProperty $ do
+  newEnv <- compileFiles [currentFile] initialEnvironment
+  -- prepare the definition request params
+  let cursorPos      = DV.aPosition.{ line = 3, character = 6 }
+  let currentTextDoc = DV.aTextDocument.{ uri = URI.fromString currentFile }
+  let params         = definitionRequestParams.{ position = cursorPos, textDocument = currentTextDoc }
+
+  -- run the actual code
+  (_, env) = TestAppM.run newEnv $ processDefinitionRequest params
+  expectedUri = URI.fromString sourceFile
+  pure $ 
+    case env.globals.lookup expectedUri of
+        Just g  -> once True
+        Nothing -> failWith $ "Could not find global with URI: " ++ expectedUri.path
+
+  where
+    currentFile = "src/main/resources/test/definition/Definition2.fr"
+    sourceFile  = "src/main/resources/test/definition/Definition1.fr"

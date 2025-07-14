@@ -32,6 +32,7 @@ data Range = Range {
   start :: Position
 , end   :: Position
 }
+derive Eq Range
 derive Show Range
 
 data Position = Position {

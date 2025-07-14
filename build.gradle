@@ -20,6 +20,7 @@ frege {
     , 'ch.fhnw.fregels.messages.exit.ExitSpec'
     , 'ch.fhnw.fregels.messages.initialize.InitializeSpec'
     , 'ch.fhnw.fregels.messages.textdocument.completion.CompletionSpec'
+    , 'ch.fhnw.fregels.messages.textdocument.definition.DefinitionSpec'
     , 'ch.fhnw.fregels.messages.textdocument.didchange.DidChangeSpec'
     , 'ch.fhnw.fregels.messages.textdocument.didopen.DidOpenSpec'
     , 'ch.fhnw.fregels.messages.textdocument.didsave.DidSaveSpec'

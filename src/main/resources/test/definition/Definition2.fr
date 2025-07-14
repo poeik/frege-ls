@@ -1,0 +1,3 @@
+module definition.Definition2 where
+import definition.Definition1
+y = xx

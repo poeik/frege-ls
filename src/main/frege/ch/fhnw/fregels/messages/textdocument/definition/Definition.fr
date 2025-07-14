@@ -17,7 +17,7 @@ import ch.fhnw.fregels.messages.GeneralLspTypes(Location(Location), URI(fromGlob
 import ch.fhnw.fregels.messages.textdocument.definition.DefinitionTypes(DefinitionRequestParams())
 import ch.fhnw.fregels.utils.Utils(tokenAt, note, hush, asFail, findGlobal)
 
-processDefinitionMessage :: (
+processDefinitionRequest :: (
     MonadCompile     m
   , MonadEnv         m
   , MonadFail        m
@@ -25,7 +25,7 @@ processDefinitionMessage :: (
   , MonadLog         m
   , MonadSendMessage m
   ) => DefinitionRequestParams -> m Location
-processDefinitionMessage params = do
+processDefinitionRequest params = do
   let currentUri = params.textDocument.uri
   let cursorPos  = params.position
   globalsMap    <- readGlobals ()
@@ -95,7 +95,7 @@ posToRange :: MonadFail m => P.Position -> Token -> m Range
 posToRange pos token = do
   let result = Range {
     start = Position { line = first.line, character = first.col }
-  , end   = Position { line = last.line, character = last.col + len }
+  , end   = Position { line = last.line, character = last.col + len - 1 }
   }
   -- definition requests for prelude functions give an illegal source position
   if result.start.line < 1 || result.start.character <= 0 then

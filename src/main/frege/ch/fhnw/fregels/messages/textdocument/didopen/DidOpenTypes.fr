@@ -1,12 +1,12 @@
 module ch.fhnw.fregels.messages.textdocument.didopen.DidOpenTypes where
 
-import Data.JSON
+import Data.JSON(FromJSON(), Value(Struct), field)
 
-import ch.fhnw.fregels.messages.GeneralLspTypes
+import ch.fhnw.fregels.messages.GeneralLspTypes(TextDocumentItem())
 
-data DidOpenRequestParams = DidOpenRequestParams { textDocument :: TextDocumentItem }
+data DidOpenNotificationParams = DidOpenNotificationParams { textDocument :: TextDocumentItem }
 
-instance FromJSON DidOpenRequestParams where
-  fromJSON (Struct as) = fmap DidOpenRequestParams $ field "textDocument" as
-  fromJSON garbage     = fail ("couldn't decode DidOpenRequestParams from: " ++ show garbage)
+instance FromJSON DidOpenNotificationParams where
+  fromJSON (Struct as) = fmap DidOpenNotificationParams $ field "textDocument" as
+  fromJSON garbage     = fail ("couldn't decode DidOpenNotificationParams from: " ++ show garbage)
 

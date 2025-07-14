@@ -1,0 +1,45 @@
+module ch.fhnw.fregels.messages.textdocument.didopen.DidOpenSpec where
+
+import ch.fhnw.fregels.messages.GeneralLspTypes(TextDocumentItem(TextDocumentItem), URI(), FileVersion(FileVersion))
+import ch.fhnw.fregels.messages.textdocument.didopen.DidOpen(processDidOpenNotification)
+import ch.fhnw.fregels.messages.textdocument.didopen.DidOpenTypes(DidOpenNotificationParams(DidOpenNotificationParams))
+import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment, expectRight)
+
+import Test.QuickCheck(Property, once)
+
+initialEnvironment        = initializeEnvironment Nothing
+
+didOpenNotificationParams = DidOpenNotificationParams { textDocument = textDocument }
+textDocument              = TextDocumentItem {
+  uri         = URI.fromString "/examples/greeting/Greeting.fr"
+, languageId  = "frege"
+, version     = FileVersion 1
+, text        = "module examples.greeting.Greeting where\r\n\r\n main :: IO ()\r\n main = println x"
+}
+
+p_ShouldCompileDebounced :: Property
+p_ShouldCompileDebounced = 
+  let 
+    (_, env) = TestAppM.run initialEnvironment $ processDidOpenNotification didOpenNotificationParams
+  in 
+    once $ env.compileDebouncedCalls == 1
+
+p_ShouldSendDiagnosticsAfterOpening :: Property
+p_ShouldSendDiagnosticsAfterOpening = 
+  let 
+    (result, env) = TestAppM.run initialEnvironment $ processDidOpenNotification didOpenNotificationParams 
+  in
+    once $ 
+      env.sentMessages.length == 1 &&
+      expectRight result (const True)
+
+p_ShouldCompileOpenedFile :: Property
+p_ShouldCompileOpenedFile =
+  let 
+    (_, env) = TestAppM.run initialEnvironment $ processDidOpenNotification didOpenNotificationParams
+  in 
+    once $ 
+      case env.globals.lookup textDocument.uri of
+        Just g -> True
+        Nothing -> False
+

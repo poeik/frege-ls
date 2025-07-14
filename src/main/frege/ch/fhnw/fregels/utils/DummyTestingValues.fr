@@ -1,0 +1,44 @@
+{-- 
+This module specifies dummy values to be used in tests.
+Please consider the following rules:
+
+1. Only one value per type
+2. Never assert on any of these dummy values, as they could change anytime. Use 
+   record syntax update to change values as desired per test.
+-}
+module ch.fhnw.fregels.utils.DummyTestingValues where
+
+import Compiler.types.Positions as P()
+import Compiler.types.Tokens    as T()
+import Compiler.enums.TokenID(TokenID(QUALIFIER))
+import Compiler.types.Global(Message(Msg), Severity(ERROR))
+
+import ch.fhnw.fregels.messages.GeneralLspTypes(
+    URI()
+  , Position(Position)
+  , TextDocument(TextDocument)
+  , TextDocumentItem(TextDocumentItem)
+  , FileVersion(FileVersion)
+  , Range(Range)
+  , Location(Location)
+  , MarkupContent(MarkupContent)
+  , MarkupKind(Markdown)
+  )
+
+-- LSP types
+
+aURI              = URI.fromString "any/file.fr"
+aPosition         = Position { line = 1, character = 1 }
+aTextDocument     = TextDocument { uri = aURI } 
+aTextDocumentItem = TextDocumentItem { uri = aURI, languageId = "frege", version = aFileVersion, text = "" }
+aFileVersion      = FileVersion 1
+aRange            = Range { start = aPosition, end = aPosition }
+aLocation         = Location { uri = aURI, range = aRange }
+aMarkupKind       = Markdown
+aMarkupContent    = MarkupContent { value = "", kind = aMarkupKind }
+
+-- Frege compiler types
+
+aFregeCompilerToken    = T.Token { tokid = QUALIFIER, value = "x", line = 1, col = 1, offset = 1, qual = []}
+aFregeCompilerPosition = P.Pos { first = aFregeCompilerToken, last = aFregeCompilerToken }
+aFregeCompilerMessage  = Msg { level = ERROR, pos = aFregeCompilerPosition, text = "error" }

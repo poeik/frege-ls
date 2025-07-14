@@ -5,5 +5,5 @@ pluginManagement {
     }
 }
 
-rootProject.name = 'frege-lsp'
+rootProject.name = 'frege-ls'
 

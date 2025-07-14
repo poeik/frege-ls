@@ -137,16 +137,3 @@ private globalFromFile content uri g =
     createMessage str = Msg { level = ERROR, pos = position, text = str }
     position = Pos { first = token, last = token }
     token    = Token { tokid = QUALIFIER, value = "x", line = 1, col = 1, offset = 1, qual = []}
-
-
---- a little helper which returns False on Left
-expectRight :: Either e r -> (r -> Bool) -> Bool
-expectRight (Left _) _ = False
-expectRight (Right r) p = p r
-
---- a little helper which returns False on Right
-expectLeft :: Either e r -> (e -> Bool) -> Bool
-expectLeft (Left e) p = p e
-expectLeft (Right _) _ = False
-
-

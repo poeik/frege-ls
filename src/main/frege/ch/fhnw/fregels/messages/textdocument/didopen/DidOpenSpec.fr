@@ -3,9 +3,10 @@ module ch.fhnw.fregels.messages.textdocument.didopen.DidOpenSpec where
 import ch.fhnw.fregels.messages.GeneralLspTypes(TextDocumentItem(TextDocumentItem), URI(), FileVersion(FileVersion))
 import ch.fhnw.fregels.messages.textdocument.didopen.DidOpen(processDidOpenNotification)
 import ch.fhnw.fregels.messages.textdocument.didopen.DidOpenTypes(DidOpenNotificationParams(DidOpenNotificationParams))
-import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment, expectRight)
+import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment)
+import ch.fhnw.fregels.utils.Testing(expectRight)
 
-import Test.QuickCheck(Property, once)
+import Test.QuickCheck(Property, once, .&&.)
 
 initialEnvironment        = initializeEnvironment Nothing
 
@@ -30,7 +31,7 @@ p_ShouldSendDiagnosticsAfterOpening =
     (result, env) = TestAppM.run initialEnvironment $ processDidOpenNotification didOpenNotificationParams 
   in
     once $ 
-      env.sentMessages.length == 1 &&
+      env.sentMessages.length == 1 `.&&.`
       expectRight result (const True)
 
 p_ShouldCompileOpenedFile :: Property

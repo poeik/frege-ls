@@ -3,9 +3,10 @@ module ch.fhnw.fregels.messages.textdocument.didsave.DidSaveSpec where
 import ch.fhnw.fregels.messages.GeneralLspTypes(URI(), FileVersion(FileVersion))
 import ch.fhnw.fregels.messages.textdocument.didsave.DidSave(processDidSaveNotification)
 import ch.fhnw.fregels.messages.textdocument.didsave.DidSaveTypes(DidSaveNotificationParams(DidSaveNotificationParams), TextDocumentIdentifier(TextDocumentIdentifier))
-import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment, expectRight)
+import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment)
+import ch.fhnw.fregels.utils.Testing(expectRight)
 
-import Test.QuickCheck(Property, once)
+import Test.QuickCheck(Property, once, .&&.)
 
 initialEnvironment        = initializeEnvironment Nothing
 
@@ -24,9 +25,8 @@ p_ShouldSendDiagnosticsAfterSaving =
   let 
     (result, env) = TestAppM.run initialEnvironment $ processDidSaveNotification didSaveNotificationParams 
   in
-    once $ 
-      env.sentMessages.length == 1 &&
-      expectRight result (const True)
+     once $ env.sentMessages.length == 1 `.&&.`
+     expectRight result (const True)
 
 p_ShouldCompileSavedFile :: Property
 p_ShouldCompileSavedFile =

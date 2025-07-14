@@ -1,12 +1,13 @@
 module ch.fhnw.fregels.messages.textdocument.didchange.DidChangeSpec where
 
 import Data.HashMap(singleton)
-import Test.QuickCheck(Property, once)
+import Test.QuickCheck(Property, once, .&&.)
 
-import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment, expectRight)
+import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment)
 import ch.fhnw.fregels.messages.GeneralLspTypes(FileVersion(FileVersion), URI())
 import ch.fhnw.fregels.messages.textdocument.didchange.DidChange(dropTrailingDots, processDidChangeNotification)
 import ch.fhnw.fregels.messages.textdocument.didchange.DidChangeTypes(DidChangeNotificationParams(DidChangeNotificationParams), VersionedTextDocumentIdentifier(VersionedTextDocumentIdentifier), TextDocumentContentChangeEvent(TextDocumentContentChangeEvent))
+import ch.fhnw.fregels.utils.Testing(expectRight)
 
 p_DropTrailingDots :: Property
 p_DropTrailingDots = 
@@ -43,8 +44,7 @@ p_ShouldSendDiagnosticsAfterChange =
   let 
     (result, env) = TestAppM.run initialEnvironment $ processDidChangeNotification didChangeNotificationParams
   in
-    once $ 
-      env.sentMessages.length == 1 &&
+    once $ env.sentMessages.length == 1 `.&&.`
       expectRight result (const True)
 
 p_ShouldCompileChangedFile :: Property

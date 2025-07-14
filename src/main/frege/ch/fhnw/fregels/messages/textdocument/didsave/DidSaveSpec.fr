@@ -1,0 +1,39 @@
+module ch.fhnw.fregels.messages.textdocument.didsave.DidSaveSpec where
+
+import ch.fhnw.fregels.messages.GeneralLspTypes(URI(), FileVersion(FileVersion))
+import ch.fhnw.fregels.messages.textdocument.didsave.DidSave(processDidSaveNotification)
+import ch.fhnw.fregels.messages.textdocument.didsave.DidSaveTypes(DidSaveNotificationParams(DidSaveNotificationParams), TextDocumentIdentifier(TextDocumentIdentifier))
+import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment, expectRight)
+
+import Test.QuickCheck(Property, once)
+
+initialEnvironment        = initializeEnvironment Nothing
+
+textDocument              = TextDocumentIdentifier { uri = URI.fromString "/examples/greeting/Greeting.fr" }
+didSaveNotificationParams = DidSaveNotificationParams { textDocument = textDocument }
+
+p_ShouldCompileDebounced :: Property
+p_ShouldCompileDebounced = 
+  let 
+    (_, env) = TestAppM.run initialEnvironment $ processDidSaveNotification didSaveNotificationParams
+  in 
+    once $ env.compileDebouncedCalls == 1
+
+p_ShouldSendDiagnosticsAfterSaving :: Property
+p_ShouldSendDiagnosticsAfterSaving = 
+  let 
+    (result, env) = TestAppM.run initialEnvironment $ processDidSaveNotification didSaveNotificationParams 
+  in
+    once $ 
+      env.sentMessages.length == 1 &&
+      expectRight result (const True)
+
+p_ShouldCompileSavedFile :: Property
+p_ShouldCompileSavedFile =
+  let 
+    (_, env) = TestAppM.run initialEnvironment $ processDidSaveNotification didSaveNotificationParams
+  in 
+    once $ 
+      case env.globals.lookup textDocument.uri of
+        Just g  -> True
+        Nothing -> False

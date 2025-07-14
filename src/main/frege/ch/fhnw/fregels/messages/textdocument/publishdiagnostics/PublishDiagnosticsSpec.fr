@@ -1,0 +1,47 @@
+module ch.fhnw.fregels.messages.textdocument.publishdiagnostics.PublishDiagnosticsSpec where
+
+import ch.fhnw.fregels.messages.GeneralLspTypes(
+    URI()
+  , FileVersion(FileVersion)
+  )
+import ch.fhnw.fregels.messages.MessageTypes(ServerMessage(PublishDiagnosticsNotification))
+import ch.fhnw.fregels.compile.FakeCompileGlobal(fakeCompileGlobal)
+import ch.fhnw.fregels.messages.textdocument.publishdiagnostics.PublishDiagnostics(publishDiagnosticsNotification)
+import ch.fhnw.fregels.TestAppM(TestAppM(), initializeEnvironment)
+import ch.fhnw.fregels.utils.Testing(failWith)
+import ch.fhnw.fregels.utils.DummyTestingValues as DV()
+
+import Test.QuickCheck(Property, property, once, .&&.)
+
+initialEnvironment = initializeEnvironment Nothing
+
+p_ShouldSendNotification :: Property
+p_ShouldSendNotification = 
+  let 
+    messages = [DV.aFregeCompilerMessage, DV.aFregeCompilerMessage]
+    uri      =  URI.fromString "my/file.fr"
+    fileGlobal = fakeCompileGlobal.{ 
+      options <- (\options -> options.{ source = uri.path }) 
+    , sub     <- (\sub     -> sub    .{ messages = messages })
+    }
+
+    (_, env)   = TestAppM.run initialEnvironment $ publishDiagnosticsNotification fileGlobal Nothing 
+  in
+    once $ env.sentMessages.length == 1 `.&&.`
+    (case env.sentMessages.head of
+       PublishDiagnosticsNotification params -> once $
+           params.diagnostics.length == 2
+        && params.uri == uri
+       _ -> failWith "Expected message of type PublishDiagnosticsNotification" )
+
+p_ShouldIncludeFileVersion :: Property
+p_ShouldIncludeFileVersion = 
+  let 
+    version  = Just $ FileVersion 1
+
+    (_, env) = TestAppM.run initialEnvironment $ publishDiagnosticsNotification fakeCompileGlobal version
+  in
+    (case env.sentMessages.head of
+       PublishDiagnosticsNotification params -> 
+        once $ params.version == version
+       _ -> failWith "Expected message of type PublishDiagnosticsNotification" )

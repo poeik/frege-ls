@@ -24,6 +24,7 @@ frege {
     , 'ch.fhnw.fregels.messages.textdocument.didopen.DidOpenSpec'
     , 'ch.fhnw.fregels.messages.textdocument.didsave.DidSaveSpec'
     , 'ch.fhnw.fregels.messages.textdocument.hover.HoverSpec'
+    , 'ch.fhnw.fregels.messages.textdocument.publishdiagnostics.PublishDiagnosticsSpec'
     , 'ch.fhnw.fregels.messages.GeneralLspTypesSpec'
     , 'ch.fhnw.fregels.rpc.RpcSpec'
     ]

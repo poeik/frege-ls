@@ -10,7 +10,6 @@ import ch.fhnw.fregels.effects.MonadSendMessage(MonadSendMessage(sendServerMessa
 import ch.fhnw.fregels.messages.textdocument.publishdiagnostics.PublishDiagnosticsTypes(Diagnostic, DiagnosticSeverity(Hint, Warning, Error), PublishDiagnosticsParams)
 import ch.fhnw.fregels.messages.GeneralLspTypes(Range(Range), Position(Position), URI(), FileVersion())
 import ch.fhnw.fregels.messages.MessageTypes(ServerMessage(PublishDiagnosticsNotification))
-import ch.fhnw.fregels.utils.Utils(asFail, findGlobal)
 
 publishDiagnosticsNotification :: (
     MonadFail        m
@@ -20,9 +19,9 @@ publishDiagnosticsNotification :: (
   ) => Global -> Maybe FileVersion -> m ()
 publishDiagnosticsNotification global version = do
   let uri = URI.fromGlobal global
-  logInfo $ "compiling was successful: " ++ show uri
   logInfo $ "publishing " ++ (show . length) global.sub.messages ++ " diagnostics for " ++ show uri.path
   let params = diagnosticParams uri version global.sub.messages
+
   sendServerMessage (PublishDiagnosticsNotification params)
 
 diagnosticParams :: URI -> Maybe FileVersion -> [Message] -> PublishDiagnosticsParams

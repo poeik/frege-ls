@@ -19,6 +19,7 @@ derive Show TextDocumentItem
 
 data FileVersion = FileVersion Int
 derive Show FileVersion
+derive Eq FileVersion
 
 data Location = Location {
   uri   :: URI 

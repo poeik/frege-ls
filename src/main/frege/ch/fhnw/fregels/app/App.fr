@@ -1,0 +1,59 @@
+module ch.fhnw.fregels.app.App where
+
+import Control.monad.trans.EitherT(left)
+import Data.JSON(parseJSON)
+import Java.IO as JIO()
+
+import ch.fhnw.fregels.compile.CompileOptions(defaultLogFile)
+import ch.fhnw.fregels.AppM(AppM, runAppM, ServerState(), initialState, ServerError(Error))
+import ch.fhnw.fregels.app.IO(sendServerMessage, readMessage, createFile)
+import ch.fhnw.fregels.messages.Message(processClientMessage)
+import ch.fhnw.fregels.messages.MessageTypes(ServerMessage, Method)
+import ch.fhnw.fregels.logger.Logger(getFileLogger, printWriterLog, Logger)
+import ch.fhnw.fregels.rpc.Rpc(decodeMessage)
+
+startApp []             = startApp [defaultLogFile]
+startApp (logFile : _) = do
+     loggingSetup <- createFile logFile
+     if loggingSetup then do
+       logger <- getFileLogger logFile
+       let log = printWriterLog logger
+       startServer log
+     else do
+       JIO.stderr.println "Could not initialize log file, exiting"
+       System.exit 1
+     
+startServer :: Logger -> IO ()
+startServer log = do
+  log "Started fregels"
+  st <- initialState
+  forever (mainLoop st log)
+      `catch` eof log
+      `finally` 
+        log "Shutting down after error occurance" 
+          >> System.exit 1
+    where
+      eof :: Logger -> EOFException -> IO ()
+      eof log e = log $ "an error occurred" ++ e.getMessage
+
+mainLoop :: ServerState -> (String -> IO ()) -> IO ()
+mainLoop st logger = do 
+  (length, newMessage) <- readMessage
+  (Method method) <-  parseJSON newMessage
+  logger ("Received \"" ++ method ++ "\"-message with length: " ++ show length)
+  (result, st) <- runAppM st $ handleClientMessage newMessage
+  case result of 
+    Left  (Error err) -> logger $ "An error occured: " ++ err
+    Right (Just msg) -> sendServerMessage msg
+    otherwise        -> pure ()
+  mainLoop st logger
+
+handleClientMessage :: String -> AppM (Maybe ServerMessage)
+handleClientMessage newMessage = do
+  request         <- liftToApp . decodeMessage $ newMessage
+  maybeResponse   <- processClientMessage request
+  pure maybeResponse
+    where 
+      liftToApp :: (String | a) -> AppM a
+      liftToApp (Right a)  = pure a
+      liftToApp (Left err) = left . Error $ err

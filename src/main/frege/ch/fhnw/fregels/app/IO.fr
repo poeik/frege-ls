@@ -1,4 +1,4 @@
-module ch.fhnw.fregels.io.IO where
+module ch.fhnw.fregels.app.IO where
 
 import Java.Util(Path)
 import Java.IO as JIO()

@@ -44,7 +44,6 @@ compileAfterChange uri version content = do
   maybeGlobal <- compileInMemory text uri
   case maybeGlobal of
     Just g -> do 
-      logInfo $ "compiling was successful: " ++ g.sub.code.toString
       publishDiagnosticsNotification g (Just version)
     Nothing -> do
       logInfo "compiling failed"

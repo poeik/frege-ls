@@ -50,7 +50,7 @@ mainLoop st logger = do
 
 handleClientMessage :: String -> AppM (Maybe ServerMessage)
 handleClientMessage newMessage = do
-  request         <- liftToApp . decodeMessage  $ newMessage
+  request         <- liftToApp . decodeMessage $ newMessage
   maybeResponse   <- processClientMessage request
   pure maybeResponse
     where 

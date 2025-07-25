@@ -50,23 +50,6 @@ fakeCompileGlobal =
     where 
       -- class loader has IO, we just replace it with `undefined` for testing purposes
       loader = mutable $ fakeClassLoader () -- $ FakeClassLoader.new ()
-      -- loader = undefined
-
-
--- data FakeClassLoader2 = native ch.fhnw.fregels.compile.FakeClassLoader where
---   native create "ch.fhnw.fregels.compile.FakeClassLoader.new" :: () -> ST s (Mutable s URLClassLoader)
-
--- data FakeClassLoader = native ch.fhnw.fregels.compile.FakeClassLoader where
---   pure native new "ch.fhnw.fregels.compile.FakeClassLoader.new" :: () -> FakeClassLoader
-
--- data FakeClassLoader3 = native java.net.URLClassLoader where
---   pure native create ch.fhnw.fregels.compile.FakeClassLoader.new :: () -> FakeClassLoader3
-  
-
--- data FregeFX = mutable native javafx.application.Application where
---     native launch  JavaFxUtils.FregeFX.launch :: ( Stage -> JFX () ) -> IO ()
---     native fxml    JavaFxUtils.FregeFX.fxml   :: String -> String -> JFX Parent
-
 
 pure native fakeClassLoader ch.fhnw.fregels.compile.FakeClassLoader.classLoader :: () -> URLClassLoader
 

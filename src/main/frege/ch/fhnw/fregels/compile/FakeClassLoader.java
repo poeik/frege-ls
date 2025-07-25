@@ -18,7 +18,9 @@ public class FakeClassLoader extends URLClassLoader {
     }
 
 
-    /** Inspired by the way java.Lang.Runnable is built */
+    /** Inspired by the way java.Lang.Runnable is built. This allows us to
+     * provide a custom class loader implementation and tell Frege that it is
+     * actually a `URLClassLoader` */
     public static java.net.URLClassLoader classLoader() {
         return new FakeClassLoader();
     }

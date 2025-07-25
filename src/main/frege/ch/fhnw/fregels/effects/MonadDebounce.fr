@@ -1,12 +1,12 @@
 module ch.fhnw.fregels.effects.MonadDebounce where
 
+import Control.monad.State(StateT())
 import Control.monad.trans.MonadIO(MonadIO(liftIO))
 import Control.monad.trans.EitherT(EitherT())
+import Control.monad.trans.MonadTrans(lift)
+
 import ch.fhnw.fregels.effects.MonadEnv(MonadEnv(setWaitForCompilationRef))
 import ch.fhnw.fregels.AppM(runAppM, AppM, AppStateM)
-
-import Control.monad.State(StateT())
-import Control.monad.trans.MonadTrans(lift)
 
 class (Monad m) => MonadDebounce m  where
   compileDebounced :: m () -> m ()

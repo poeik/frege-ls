@@ -3,7 +3,7 @@ module ch.fhnw.fregels.messages.textdocument.didsave.DidSaveSpec where
 import ch.fhnw.fregels.messages.GeneralLspTypes(URI(), FileVersion(FileVersion))
 import ch.fhnw.fregels.messages.textdocument.didsave.DidSave(processDidSaveNotification)
 import ch.fhnw.fregels.messages.textdocument.didsave.DidSaveTypes(DidSaveNotificationParams(DidSaveNotificationParams), TextDocumentIdentifier(TextDocumentIdentifier))
-import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment)
+import ch.fhnw.fregels.app.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment)
 import ch.fhnw.fregels.utils.Testing(expectRight)
 
 import Test.QuickCheck(Property, once, .&&.)

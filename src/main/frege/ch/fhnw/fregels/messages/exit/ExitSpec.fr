@@ -3,7 +3,7 @@ module ch.fhnw.fregels.messages.exit.ExitSpec where
 import Test.QuickCheck(Property, once)
 
 import ch.fhnw.fregels.messages.exit.Exit(processExitNotification)
-import ch.fhnw.fregels.TestAppM(TestAppM(), initializeEnvironment)
+import ch.fhnw.fregels.app.TestAppM(TestAppM(), initializeEnvironment)
 
 p_ExitLeadsToShutdown:: Property
 p_ExitLeadsToShutdown = 

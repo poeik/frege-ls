@@ -7,7 +7,7 @@ import Data.HashMap(fromList, lookup)
 import ch.fhnw.fregels.compile.CompileExecutorLSP(compileMakeLSP, compileMakeLSPInMemory)
 import ch.fhnw.fregels.effects.MonadLog(MonadLog(logInfo))
 import ch.fhnw.fregels.effects.MonadGlobals(MonadGlobals(projectGlobal, readGlobals, addGlobals))
-import ch.fhnw.fregels.AppM(runAppM, AppM, AppStateM, ServerState())
+import ch.fhnw.fregels.app.AppM(runAppM, AppM, AppStateM, ServerState())
 import ch.fhnw.fregels.messages.GeneralLspTypes(URI())
 
 class MonadCompile m where

@@ -5,7 +5,7 @@ import Data.JSON(parseJSON)
 import Java.IO as JIO()
 
 import ch.fhnw.fregels.compile.CompileOptions(defaultLogFile)
-import ch.fhnw.fregels.AppM(AppM, runAppM, ServerState(), initialState, ServerError(Error))
+import ch.fhnw.fregels.app.AppM(AppM, runAppM, ServerState(), initialState, ServerError(Error))
 import ch.fhnw.fregels.app.IO(sendServerMessage, readMessage, createFile)
 import ch.fhnw.fregels.messages.Message(processClientMessage)
 import ch.fhnw.fregels.messages.MessageTypes(ServerMessage, Method)

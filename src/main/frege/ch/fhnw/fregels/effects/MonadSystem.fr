@@ -3,7 +3,7 @@ module ch.fhnw.fregels.effects.MonadSystem where
 import Control.monad.trans.MonadIO(MonadIO(liftIO))
 import Control.monad.trans.EitherT(EitherT())
 
-import ch.fhnw.fregels.AppM(AppM, AppStateM)
+import ch.fhnw.fregels.app.AppM(AppM, AppStateM)
 
 class Monad m => MonadSystem m where
   systemExit :: () -> m ()

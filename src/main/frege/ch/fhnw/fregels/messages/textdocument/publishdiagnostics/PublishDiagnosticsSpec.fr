@@ -7,7 +7,7 @@ import ch.fhnw.fregels.messages.GeneralLspTypes(
 import ch.fhnw.fregels.messages.MessageTypes(ServerMessage(PublishDiagnosticsNotification))
 import ch.fhnw.fregels.compile.FakeCompileGlobal(fakeCompileGlobal)
 import ch.fhnw.fregels.messages.textdocument.publishdiagnostics.PublishDiagnostics(publishDiagnosticsNotification)
-import ch.fhnw.fregels.TestAppM(TestAppM(), initializeEnvironment)
+import ch.fhnw.fregels.app.TestAppM(TestAppM(), initializeEnvironment)
 import ch.fhnw.fregels.utils.Testing(failWith)
 import ch.fhnw.fregels.utils.DummyTestingValues as DV()
 

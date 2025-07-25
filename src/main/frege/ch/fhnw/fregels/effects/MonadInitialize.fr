@@ -6,7 +6,7 @@ import Control.monad.trans.MonadTrans(lift)
 import Control.monad.State(StateT())
 import Java.IO as JIO()
 
-import ch.fhnw.fregels.AppM(AppM, AppStateM)
+import ch.fhnw.fregels.app.AppM(AppM, AppStateM)
 import ch.fhnw.fregels.compile.CompileExecutorLSP(fromOptionsLSP)
 import ch.fhnw.fregels.messages.GeneralLspTypes(URI())
 

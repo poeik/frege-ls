@@ -4,7 +4,7 @@ import Control.monad.trans.MonadIO(MonadIO(liftIO))
 
 import ch.fhnw.fregels.messages.MessageTypes(ServerMessage())
 import ch.fhnw.fregels.rpc.Rpc(encodeMessage)
-import ch.fhnw.fregels.AppM(AppM, AppStateM)
+import ch.fhnw.fregels.app.AppM(AppM, AppStateM)
 
 --- This effect enables to send a message from the server to the client 
 class Monad m => MonadSendMessage m where

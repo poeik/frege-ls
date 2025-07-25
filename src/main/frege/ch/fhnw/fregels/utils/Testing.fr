@@ -7,7 +7,7 @@ import Test.QuickCheck(Property, once, morallyDubiousIOProperty)
 import ch.fhnw.fregels.compile.CompileMakeMode(compileMake)
 import ch.fhnw.fregels.compile.CompileGlobal(standardCompileGlobal)
 import ch.fhnw.fregels.compile.CompileOptions(standardCompileOptions)
-import ch.fhnw.fregels.TestAppM(TestEnv())
+import ch.fhnw.fregels.app.TestAppM(TestEnv())
 import ch.fhnw.fregels.messages.GeneralLspTypes(URI())
 
 {-- Fails a test on `Left` and prints an error to the console -}

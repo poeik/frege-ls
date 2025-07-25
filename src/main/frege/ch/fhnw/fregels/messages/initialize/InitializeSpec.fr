@@ -9,7 +9,7 @@ import ch.fhnw.fregels.effects.MonadInitialize(MonadInitialize())
 import ch.fhnw.fregels.messages.initialize.Initialize(processInitializeMessage)
 import ch.fhnw.fregels.messages.initialize.InitializeTypes(InitializeRequestParams(InitializeRequestParams), WorkspaceFolder(WorkspaceFolder))
 import ch.fhnw.fregels.messages.GeneralLspTypes(URI())
-import ch.fhnw.fregels.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment)
+import ch.fhnw.fregels.app.TestAppM(TestAppM(), TestEnv(TestEnv), initializeEnvironment)
 
 data InitializeEffects = Effects { opts :: Maybe Options, rootUri :: Maybe URI, compileDir :: Maybe JIO.File }
 

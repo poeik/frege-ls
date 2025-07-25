@@ -1,4 +1,4 @@
-module ch.fhnw.fregels.AppM where
+module ch.fhnw.fregels.app.AppM where
 
 import Control.concurrent.STM(TVar(), atomically)
 import Control.monad.State(StateT(), State(), runStateT, promote)

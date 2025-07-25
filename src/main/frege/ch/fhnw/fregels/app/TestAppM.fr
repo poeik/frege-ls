@@ -1,4 +1,4 @@
-module ch.fhnw.fregels.TestAppM where
+module ch.fhnw.fregels.app.TestAppM where
 
 import Compiler.types.Global(Global(Global), Options(), Sub, Message())
 import Compiler.types.Packs(Pack())

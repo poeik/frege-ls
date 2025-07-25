@@ -6,7 +6,7 @@ import Control.monad.trans.EitherT(EitherT())
 import Control.monad.trans.MonadTrans(lift)
 
 import ch.fhnw.fregels.effects.MonadEnv(MonadEnv(setWaitForCompilationRef))
-import ch.fhnw.fregels.AppM(runAppM, AppM, AppStateM)
+import ch.fhnw.fregels.app.AppM(runAppM, AppM, AppStateM)
 
 class (Monad m) => MonadDebounce m  where
   compileDebounced :: m () -> m ()

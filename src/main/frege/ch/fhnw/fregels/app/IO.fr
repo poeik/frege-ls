@@ -7,11 +7,13 @@ import ch.fhnw.fregels.rpc.Rpc(encodeMessage, extractMessageLength)
 import ch.fhnw.fregels.messages.MessageTypes(ServerMessage)
 import Control.monad.trans.MonadIO(MonadIO, liftIO)
 
-
 pure native fromChars "new java.lang.String" :: JArray Char -> String
 
 sendServerMessage :: (MonadIO m) => ServerMessage -> m ()
-sendServerMessage = liftIO . println . encodeMessage
+sendServerMessage msg = do 
+  let encoded = encodeMessage msg
+  liftIO $ print encoded
+  liftIO stdout.flush
 
 readMessage :: IO (Int, String)
 readMessage = do

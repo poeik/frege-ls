@@ -93,7 +93,12 @@ data MarkupKind = PlainText | Markdown
 derive Show MarkupKind
 derive Eq MarkupKind
 
--------------  FromJSON instances ------------- 
+-- -----------  FromJSON instances ------------- 
+
+--- Parse "1" or 1 as Int
+intField :: (MonadFail m) => String -> [(String,Value)] -> m Int
+intField f (as@(_, (String _)):xs) = fmap read $ field f as
+intField f as = field f as
 
 instance FromJSON URI where
   fromJSON (String uri) = pure $ URI.fromString uri

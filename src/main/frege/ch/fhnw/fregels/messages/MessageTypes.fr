@@ -10,7 +10,7 @@ import ch.fhnw.fregels.messages.textdocument.completion.CompletionTypes(Completi
 import ch.fhnw.fregels.messages.textdocument.hover.HoverTypes(HoverRequestParams, HoverResult)
 import ch.fhnw.fregels.messages.textdocument.didsave.DidSaveTypes(DidSaveNotificationParams)
 import ch.fhnw.fregels.messages.textdocument.publishdiagnostics.PublishDiagnosticsTypes(PublishDiagnosticsParams)
-import ch.fhnw.fregels.messages.GeneralLspTypes(Location)
+import ch.fhnw.fregels.messages.GeneralLspTypes(Location, intField)
 
 -- Messages sent from the client.
 data ClientMessage = InitializeRequest     { id :: Int, initParams       :: InitializeRequestParams } 
@@ -28,11 +28,11 @@ instance FromJSON ClientMessage where
   fromJSON (Struct as) = do
     method <- field "method" as
     case method of 
-      "initialize"              -> InitializeRequest <$> field "id" as <*> field "params" as
-      "textDocument/definition" -> DefinitionRequest <$> field "id" as <*> field "params" as
-      "textDocument/completion" -> CompletionRequest <$> field "id" as <*> field "params" as
-      "textDocument/hover"      -> HoverRequest      <$> field "id" as <*> field "params" as
-      "shutdown"                -> ShutdownRequest   <$> field "id" as
+      "initialize"              -> InitializeRequest <$> intField "id" as <*> field "params" as
+      "textDocument/definition" -> DefinitionRequest <$> intField "id" as <*> field "params" as
+      "textDocument/completion" -> CompletionRequest <$> intField "id" as <*> field "params" as
+      "textDocument/hover"      -> HoverRequest      <$> intField "id" as <*> field "params" as
+      "shutdown"                -> ShutdownRequest   <$> intField "id" as
       "initialized"             -> pure InitializedNotification
       "textDocument/didOpen"    -> DidOpenNotification   <$> field "params" as
       "textDocument/didSave"    -> DidSaveNotification   <$> field "params" as

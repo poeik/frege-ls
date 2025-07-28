@@ -1,12 +1,37 @@
 module ch.fhnw.fregels.messages.GeneralLspTypesSpec where
 
 import ch.fhnw.fregels.compile.FakeCompileGlobal(fakeCompileGlobal)
-import ch.fhnw.fregels.messages.GeneralLspTypes(URI(), Position(Position))
+import ch.fhnw.fregels.messages.GeneralLspTypes(URI(), Position(Position), intField)
 import ch.fhnw.fregels.utils.Testing(failWith)
 
 import Compiler.types.Packs(Pack())
 import Data.JSON(fromJSON, toJSON, Value(String, Struct, Number))
 import Test.QuickCheck(Property, once, property, ==>, Arbitrary, choose, sized)
+
+
+p_ShouldParseIntFromString :: Property
+p_ShouldParseIntFromString = property $ \(int :: Int) ->
+  let
+     json = [("id", String $ show int)]
+
+     expected = int
+     parsed  =  intField "id" json :: Either String Int
+  in
+    case parsed of
+      Right actual -> once $ actual == expected
+      Left err -> failWith err
+
+p_ShouldParseIntFromNumber :: Property
+p_ShouldParseIntFromNumber = property $ \(int :: Int) ->
+  let
+     json = [("id", Number $ show int)]
+
+     expected = int
+     parsed  =  intField "id" json :: Either String Int
+  in
+    case parsed of
+      Right actual -> once $ actual == expected
+      Left err -> failWith err
 
 -- URI CTOR tests --
 

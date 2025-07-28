@@ -22,7 +22,7 @@ instance MonadInitialize (TestAppM InitializeEffects) where
 
 initializeRequestParams :: InitializeRequestParams
 initializeRequestParams = InitializeRequestParams { 
-  processId = 0
+  processId = Just 0
 , clientInfo = Nothing
 , workspaceFolders = Just [ WorkspaceFolder { name = "", uri = URI.fromString "" } ] 
 , rootUri = Just $ URI.fromString ""

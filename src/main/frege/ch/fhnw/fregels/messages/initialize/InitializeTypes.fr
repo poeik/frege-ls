@@ -5,7 +5,7 @@ import ch.fhnw.fregels.messages.GeneralLspTypes
 import Data.JSON
 
 data InitializeRequestParams = InitializeRequestParams {
-  processId        :: Int
+  processId        :: Maybe Int
 , clientInfo       :: Maybe ClientInfo
 , workspaceFolders :: Maybe [WorkspaceFolder]
 , rootUri          :: Maybe URI
@@ -69,7 +69,7 @@ derive Show CompletionOptions
 
 instance FromJSON InitializeRequestParams where
   fromJSON (Struct as) = do
-    processId        <- field    "processId" as
+    processId        <- optional "processId" as
     clientInfo       <- optional "clientInfo" as
     workspaceFolders <- optional "workspaceFolders" as
     rootUri          <- optional "rootUri" as

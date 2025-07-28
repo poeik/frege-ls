@@ -92,6 +92,13 @@ Since standard out is used to communicate with the client, we can't use it for
 debugging or logging. We therefore use a dedicated logging mechanism.
 To see the logs, use `tail -f .fregels/fregels.log`.
 
+### Creating a new release
+
+1. Increase the version number in [Initialize.fr](./src/main/frege/ch/fhnw/fregels/messages/initialize/Initialize.fr) 
+2. Create a commit 
+3. Run `gradle -Pversion=vX.X.X distTar`
+4. Create a new release tag in GitHub and upload the created tar
+
 ## Acknowledgements
 
 This code builds on few ideas taken from the already existing [frege-lsp-server](https://github.com/tricktron/frege-lsp-server/tree/main). 

@@ -45,7 +45,7 @@ serverInfos :: ServerInfo
 serverInfos =
   ServerInfo { 
     name = "Frege Language Server"
-  , version = Just "v0.0.1"
+  , version = Just "v1.0.0"
   }
 
 capabilities :: ServerCapabilities 

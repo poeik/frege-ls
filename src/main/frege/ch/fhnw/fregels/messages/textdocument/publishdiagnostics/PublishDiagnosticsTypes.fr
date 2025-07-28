@@ -40,8 +40,8 @@ instance ToJSON Diagnostic where
 
 instance ToJSON PublishDiagnosticsParams where
   toJSON (PublishDiagnosticsParams uri version diagnostics) =
-    Struct [
-      ("uri"        , toJSON uri)
-    , ("version"    , toJSON version)
-    , ("diagnostics", toJSON diagnostics)
-    ]
+    Struct $ catMaybes
+      [ Just ("uri", toJSON uri)
+      , fmap (\v -> ("version", toJSON v)) version
+      , Just ("diagnostics", toJSON diagnostics)
+      ]

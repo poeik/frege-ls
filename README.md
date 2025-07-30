@@ -3,6 +3,18 @@
 This is the repository of an implementation of the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) for
 [Frege](https://github.com/Frege/frege).
 
+## Usage
+
+- Use the [IntelliJ plugin](https://github.com/poeik/FregeIntellIJPlugin)
+- Or integrate it with NeoVim like described [here](#integrating-with-an-ide).
+
+> Note 1: Make sure your Frege files are located in `./src/main/frege` or in
+> the directory stated in the environment variable `FREGE_LS_SOURCE_DIR`. 
+
+> Note 2: The Frege Language Server uses the file system to resolve modules.
+> Therefore, always use the file path relative to `FREGE_LS_SOURCE_DIR` as
+> module name.
+
 ## Setup
 
 You need Java & Gradle to compile and run the code.
